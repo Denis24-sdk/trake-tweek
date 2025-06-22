@@ -1,16 +1,15 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-void main() {
-  runApp(const HabitTrackerApp());
-}
+void main() => runApp(const HabitTrackerApp());
 
 class HabitTrackerApp extends StatefulWidget {
   const HabitTrackerApp({super.key});
-
   @override
   State<HabitTrackerApp> createState() => _HabitTrackerAppState();
 }
@@ -18,101 +17,142 @@ class HabitTrackerApp extends StatefulWidget {
 class _HabitTrackerAppState extends State<HabitTrackerApp> {
   ThemeMode _themeMode = ThemeMode.system;
 
-  void _toggleTheme() {
-    setState(() {
-      _themeMode = _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      setState(() {
+        if (_themeMode != ThemeMode.system) return;
+        final brightness = WidgetsBinding.instance.window.platformBrightness;
+        _themeMode = brightness == Brightness.dark ? ThemeMode.dark : ThemeMode.light;
+      });
     });
   }
 
+  void _toggleTheme() => setState(() {
+        _themeMode =
+            _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+      });
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Habit Tracker',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-        textTheme: GoogleFonts.poppinsTextTheme(),
-        useMaterial3: true,
+    final lightSeed = const Color(0xFF6C8CAF);
+    final darkSeed = const Color(0xFF8AA6B1);
+
+    final lightTheme = ThemeData(
+      colorScheme:
+          ColorScheme.fromSeed(seedColor: lightSeed, brightness: Brightness.light),
+      textTheme: GoogleFonts.poppinsTextTheme(),
+      useMaterial3: true,
+      scaffoldBackgroundColor: const Color(0xFFF5F7FA),
+    );
+    final darkTheme = ThemeData(
+      colorScheme:
+          ColorScheme.fromSeed(seedColor: darkSeed, brightness: Brightness.dark),
+      textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
+      useMaterial3: true,
+      scaffoldBackgroundColor: const Color(0xFF12191F),
+    );
+
+    return AnimatedTheme(
+      data: _themeMode == ThemeMode.dark ? darkTheme : lightTheme,
+      duration: 600.ms,
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: lightTheme,
+        darkTheme: darkTheme,
+        themeMode: _themeMode,
+        home: HabitHomePage(onToggleTheme: _toggleTheme),
       ),
-      darkTheme: ThemeData.dark().copyWith(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.indigo,
-          brightness: Brightness.dark,
-        ),
-        textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
-        useMaterial3: true,
-      ),
-      themeMode: _themeMode,
-      home: HabitHomePage(onToggleTheme: _toggleTheme),
     );
   }
 }
 
 class Habit {
   String name;
-  Set<String> completedDates;
+  TimeOfDay? reminderTime;
   DateTime createdAt;
+  Set<String> completedDates;
+  DateTime? firstActivationDate;
 
-  Habit(this.name, {Set<String>? completedDates, DateTime? createdAt})
-      : completedDates = completedDates ?? {},
-        createdAt = createdAt ?? DateTime.now();
+  Habit(this.name,
+      {this.reminderTime,
+      DateTime? createdAt,
+      Set<String>? completedDates,
+      this.firstActivationDate})
+      : createdAt = createdAt ?? DateTime.now(),
+        completedDates = completedDates ?? {};
 
-  bool isCompletedOn(DateTime date) {
-    final key = DateFormat('yyyy-MM-dd').format(date);
+  bool isCompletedToday() {
+    final key = DateFormat('yyyy-MM-dd').format(DateTime.now());
     return completedDates.contains(key);
   }
 
-  void toggleOn(DateTime date) {
-    final key = DateFormat('yyyy-MM-dd').format(date);
+  void toggleToday() {
+    final key = DateFormat('yyyy-MM-dd').format(DateTime.now());
     if (completedDates.contains(key)) {
       completedDates.remove(key);
     } else {
+      if (firstActivationDate != null &&
+          DateTime.now().difference(firstActivationDate!).inDays >= 7) {
+        completedDates.clear();
+        firstActivationDate = DateTime.now();
+      } else if (firstActivationDate == null) {
+        firstActivationDate = DateTime.now();
+      }
       completedDates.add(key);
     }
   }
 
+  int getProgressForWeek() {
+    if (firstActivationDate == null) return 0;
+    final days = DateTime.now().difference(firstActivationDate!).inDays;
+    if (days >= 7) {
+      firstActivationDate = null;
+      completedDates.clear();
+      return 0;
+    }
+    return completedDates.length;
+  }
+
   int getCurrentStreak() {
-    if (completedDates.isEmpty) return 0;
-    DateTime today = DateTime.now();
     int streak = 0;
-    while (completedDates.contains(DateFormat('yyyy-MM-dd').format(today))) {
+    DateTime d = DateTime.now();
+    while (completedDates
+        .contains(DateFormat('yyyy-MM-dd').format(d))) {
       streak++;
-      today = today.subtract(const Duration(days: 1));
+      d = d.subtract(const Duration(days: 1));
     }
     return streak;
   }
 
-  int getBestStreak() {
-    if (completedDates.isEmpty) return 0;
-    List<String> sortedDates = completedDates.toList()..sort();
-    int bestStreak = 0, currentStreak = 1;
-    for (int i = 1; i < sortedDates.length; i++) {
-      DateTime prev = DateTime.parse(sortedDates[i - 1]);
-      DateTime current = DateTime.parse(sortedDates[i]);
-      if (current.difference(prev).inDays == 1) {
-        currentStreak++;
-      } else {
-        bestStreak = bestStreak < currentStreak ? currentStreak : bestStreak;
-        currentStreak = 1;
-      }
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'reminderTime': reminderTime != null
+            ? {'h': reminderTime!.hour, 'm': reminderTime!.minute}
+            : null,
+        'createdAt': createdAt.toIso8601String(),
+        'completedDates': completedDates.toList(),
+        'firstActivationDate':
+            firstActivationDate?.toIso8601String(),
+      };
+
+  static Habit fromJson(Map<String, dynamic> j) {
+    TimeOfDay? rt;
+    if (j['reminderTime'] != null) {
+      rt = TimeOfDay(
+          hour: j['reminderTime']['h'], minute: j['reminderTime']['m']);
     }
-    bestStreak = bestStreak < currentStreak ? currentStreak : bestStreak;
-    return bestStreak;
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'name': name,
-      'completedDates': completedDates.toList(),
-      'createdAt': createdAt.toIso8601String(),
-    };
-  }
-
-  static Habit fromJson(Map<String, dynamic> json) {
     return Habit(
-      json['name'],
-      completedDates: (json['completedDates'] as List<dynamic>).map((e) => e as String).toSet(),
-      createdAt: DateTime.parse(json['createdAt']),
+      j['name'],
+      reminderTime: rt,
+      createdAt: DateTime.parse(j['createdAt']),
+      completedDates: (j['completedDates'] as List)
+          .map((e) => e as String)
+          .toSet(),
+      firstActivationDate: j['firstActivationDate'] != null
+          ? DateTime.parse(j['firstActivationDate'])
+          : null,
     );
   }
 }
@@ -120,318 +160,367 @@ class Habit {
 class HabitHomePage extends StatefulWidget {
   final VoidCallback onToggleTheme;
   const HabitHomePage({super.key, required this.onToggleTheme});
-
   @override
   State<HabitHomePage> createState() => _HabitHomePageState();
 }
 
 class _HabitHomePageState extends State<HabitHomePage> {
-  final List<Habit> _habits = [];
-  final TextEditingController _controller = TextEditingController();
-  bool _isLoading = true;
-  String _sortMode = 'createdAt';
+  final _habits = <Habit>[];
+  bool _loading = true;
+
+  final _nameCtrl = TextEditingController();
+  TimeOfDay? _pickedTime;
+
+  String? _nameError;
 
   @override
   void initState() {
     super.initState();
-    _loadHabits();
+    _load();
   }
 
-  Future<void> _loadHabits() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? data = prefs.getString('habits');
-    if (data != null) {
-      final List<dynamic> jsonList = jsonDecode(data);
+  Future _load() async {
+    final p = await SharedPreferences.getInstance();
+    final s = p.getString('habits');
+    if (s != null) {
+      final list = jsonDecode(s) as List;
       _habits.clear();
-      _habits.addAll(jsonList.map((e) => Habit.fromJson(e)).toList());
+      _habits.addAll(list.map((e) => Habit.fromJson(e)));
     }
-    setState(() {
-      _isLoading = false;
+    _sortList();
+    setState(() => _loading = false);
+  }
+
+  Future _save() async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString(
+        'habits', jsonEncode(_habits.map((e) => e.toJson()).toList()));
+  }
+
+  void _sortList() {
+    _habits.sort((a, b) {
+      if (a.reminderTime == null && b.reminderTime == null) return 0;
+      if (a.reminderTime == null) return 1;
+      if (b.reminderTime == null) return -1;
+      final aMinutes = a.reminderTime!.hour * 60 + a.reminderTime!.minute;
+      final bMinutes = b.reminderTime!.hour * 60 + b.reminderTime!.minute;
+      return aMinutes.compareTo(bMinutes);
     });
   }
 
-  Future<void> _saveHabits() async {
-    final prefs = await SharedPreferences.getInstance();
-    final List<Map<String, dynamic>> jsonList = _habits.map((e) => e.toJson()).toList();
-    prefs.setString('habits', jsonEncode(jsonList));
-  }
+  void _editAdd([int? idx]) {
+    final isEdit = idx != null;
+    if (isEdit) {
+      final h = _habits[idx];
+      _nameCtrl.text = h.name;
+      _pickedTime = h.reminderTime;
+    } else {
+      _nameCtrl.clear();
+      _pickedTime = null;
+    }
+    _nameError = null;
 
-  void _addHabit() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-    setState(() {
-      _habits.insert(0, Habit(text));
-    });
-    _controller.clear();
-    _saveHabits();
-  }
-
-  void _toggleHabitOnDate(int habitIndex, DateTime date) {
-    setState(() {
-      _habits[habitIndex].toggleOn(date);
-    });
-    _saveHabits();
-  }
-
-  void _deleteHabit(int index) {
-    setState(() {
-      _habits.removeAt(index);
-    });
-    _saveHabits();
-  }
-
-  void _editHabit(int index) {
-    final TextEditingController editController = TextEditingController(text: _habits[index].name);
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Редактировать привычку'),
-        content: TextField(
-          controller: editController,
-          decoration: const InputDecoration(hintText: 'Новое название'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Отмена'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _habits[index].name = editController.text.trim();
-              });
-              _saveHabits();
-              Navigator.of(context).pop();
-            },
-            child: const Text('Сохранить'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAddHabitDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Добавить привычку'),
-        content: TextField(
-          controller: _controller,
-          decoration: const InputDecoration(hintText: 'Например, "Пить воду"'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _controller.clear();
-            },
-            child: const Text('Отмена'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              _addHabit();
-              Navigator.of(context).pop();
-            },
-            child: const Text('Добавить'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _resetAllHabits() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Сбросить всё?'),
-        content: const Text('Вы точно хотите удалить все привычки?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Отмена'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _habits.clear();
-              });
-              _saveHabits();
-              Navigator.of(context).pop();
-            },
-            child: const Text('Сбросить всё'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _changeSortMode(String mode) {
-    setState(() {
-      _sortMode = mode;
-      if (mode == 'name') {
-        _habits.sort((a, b) => a.name.compareTo(b.name));
-      } else if (mode == 'streak') {
-        _habits.sort((b, a) => a.getCurrentStreak().compareTo(b.getCurrentStreak()));
-      } else {
-        _habits.sort((b, a) => a.createdAt.compareTo(b.createdAt));
-      }
-    });
-  }
-
-  Widget _buildHabitCard(int index) {
-    final habit = _habits[index];
-    final last7Days = List.generate(7, (i) => DateTime.now().subtract(Duration(days: 6 - i)));
-
-    return GestureDetector(
-      onLongPress: () => _editHabit(index),
-      child: Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        elevation: 3,
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text(habit.name,
-                  style: Theme.of(context).textTheme.titleMedium!.copyWith(fontWeight: FontWeight.bold)),
-              IconButton(
-                icon: const Icon(Icons.delete_outline),
-                onPressed: () => _deleteHabit(index),
-                color: Theme.of(context).colorScheme.error,
+      builder: (_) => StatefulBuilder(
+        builder: (c, st) => AlertDialog(
+          title: Text(isEdit ? 'Редактировать' : 'Добавить'),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(
+              controller: _nameCtrl,
+              maxLength:25,
+              decoration: InputDecoration(
+                labelText: 'Название',
+                errorText: _nameError,
+                counterText: '', // Скрыть счётчик символов
               ),
+              onChanged: (_) {
+                if (_nameError != null) {
+                  st(() => _nameError = null);
+                }
+              },
+            ),
+            Row(children: [
+              const Text('Время: '),
+              TextButton(
+                onPressed: () async {
+                  final t = await showTimePicker(
+                      context: context,
+                      initialTime: _pickedTime ?? TimeOfDay.now());
+                  if (t != null) st(() => _pickedTime = t);
+                },
+                child: Text(_pickedTime?.format(context) ?? 'Выбрать'),
+              )
             ]),
-            const SizedBox(height: 12),
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text('🔥 Стрик: ${habit.getCurrentStreak()}'),
-              Text('🏆 Лучший: ${habit.getBestStreak()}'),
-            ]),
-            const SizedBox(height: 12),
-            Row(
-              children: last7Days.map((date) {
-                final isCompleted = habit.isCompletedOn(date);
-                final weekday = DateFormat.E().format(date);
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () => _toggleHabitOnDate(index, date),
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isCompleted
-                            ? Theme.of(context).colorScheme.primary.withOpacity(0.7)
-                            : Theme.of(context).colorScheme.surfaceVariant,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(weekday, style: const TextStyle(fontSize: 12)),
-                          const SizedBox(height: 4),
-                          Icon(
-                            isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
-                            size: 20,
-                            color: isCompleted
-                                ? Colors.white
-                                : Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ],
+          ]),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
+            ElevatedButton(
+                onPressed: () {
+                  final n = _nameCtrl.text.trim();
+                  if (n.isEmpty) {
+                    st(() => _nameError = 'Введите название');
+                    return;
+                  }
+                  if (n.length > 30) {
+                    st(() => _nameError = 'Максимум 30 символов');
+                    return;
+                  }
+                  setState(() {
+                    if (isEdit) {
+                      final h = _habits[idx!];
+                      h.name = n;
+                      h.reminderTime = _pickedTime;
+                    } else {
+                      _habits.add(
+                          Habit(n, reminderTime: _pickedTime));
+                    }
+                    _sortList();
+                  });
+                  _save();
+                  Navigator.pop(context);
+                },
+                child: Text(isEdit ? 'Сохранить' : 'Добавить'))
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _card(int i) {
+    final h = _habits[i];
+    final done = h.isCompletedToday();
+    final p = h.getProgressForWeek() / 7;
+    final bg = done
+        ? Theme.of(context).colorScheme.primaryContainer
+        : Theme.of(context).colorScheme.surfaceVariant;
+
+    final isHover = _hoverIndex == i;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() {
+        _hoverIndex = i;
+      }),
+      onExit: (_) => setState(() {
+        _hoverIndex = -1;
+      }),
+      child: Animate(
+        effects: [
+          FadeEffect(),
+          ScaleEffect(curve: Curves.easeOutBack),
+          if (isHover)
+            MoveEffect(
+              duration: 250.ms,
+              begin: const Offset(0, 0),
+              end: const Offset(0, -5),
+              curve: Curves.easeOut,
+            ),
+        ],
+        child: AnimatedContainer(
+          duration: 250.ms,
+          curve: Curves.easeOut,
+          margin: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: isHover
+                ? [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    )
+                  ]
+                : [],
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () {
+              setState(() {
+                h.toggleToday();
+              });
+              _save();
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    Expanded(
+                        child: Text(
+                      h.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    )),
+                    if (h.reminderTime != null)
+                      Row(children: [
+                        const Icon(Icons.alarm, size: 18),
+                        const SizedBox(width: 4),
+                        Text(h.reminderTime!.format(context)),
+                      ])
+                  ]),
+                  const SizedBox(height: 4), // уменьшенный отступ между заголовком и прогрессом
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0, end: p),
+                      duration: 600.ms,
+                      builder: (_, v, __) => LinearProgressIndicator(
+                        value: v,
+                        minHeight: 8,
+                        backgroundColor: Colors.grey.shade300,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ),
-                );
-              }).toList(),
+                  const SizedBox(height: 6),
+                  Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                    Text('🔥 ${h.getCurrentStreak()} дн.',
+                        style: Theme.of(context).textTheme.bodySmall),
+                    const SizedBox(width: 8),
+                    IconButton(
+                        icon: Icon(Icons.edit,
+                            color: Theme.of(context).colorScheme.primary),
+                        onPressed: () => _editAdd(i),
+                        splashRadius: 20,
+                        padding: EdgeInsets.zero),
+                    IconButton(
+                        icon: Icon(Icons.delete,
+                            color: Theme.of(context).colorScheme.error),
+                        onPressed: () {
+                          setState(() => _habits.removeAt(i));
+                          _save();
+                        },
+                        splashRadius: 20,
+                        padding: EdgeInsets.zero),
+                  ])
+                ],
+              ),
             ),
-          ]),
+          ),
         ),
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final today = DateFormat.yMMMMEEEEd().format(DateTime.now());
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('📚 Мои Привычки'),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () => _showSettingsBottomSheet(),
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(children: [
-                Text(today,
-                    style: Theme.of(context).textTheme.titleMedium!.copyWith(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        )),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Сортировка:'),
-                    DropdownButton<String>(
-                      value: _sortMode,
-                      items: const [
-                        DropdownMenuItem(value: 'createdAt', child: Text('По дате')),
-                        DropdownMenuItem(value: 'name', child: Text('По алфавиту')),
-                        DropdownMenuItem(value: 'streak', child: Text('По стрику')),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) _changeSortMode(value);
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: _habits.isEmpty
-                      ? Center(child: Text('Добавьте привычку ✨', style: Theme.of(context).textTheme.titleMedium))
-                      : ListView.builder(
-                          itemCount: _habits.length,
-                          itemBuilder: (context, index) => _buildHabitCard(index),
-                        ),
-                ),
-              ]),
-            ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddHabitDialog,
-        icon: const Icon(Icons.add),
-        label: const Text('Добавить привычку'),
-      ),
-    );
-  }
+  int _hoverIndex = -1;
 
-  void _showSettingsBottomSheet() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Настройки', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          ListTile(
-            leading: const Icon(Icons.refresh),
-            title: const Text('Сбросить все привычки'),
-            onTap: () {
-              Navigator.of(context).pop();
-              _resetAllHabits();
-            },
+  @override
+  Widget build(BuildContext c) {
+    final w = MediaQuery.of(c).size.width;
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    final isPhone = w < 600;
+    final cols = (w / 300).floor().clamp(1, 4);
+
+    return Scaffold(
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(80),
+        child: AppBar(
+          automaticallyImplyLeading: false,
+          flexibleSpace: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Первая строка: заголовок слева, кнопки справа
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '📚 Привычки',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 20,
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: Icon(
+                              c.readTheme().brightness == Brightness.dark
+                                  ? Icons.brightness_7
+                                  : Icons.brightness_4,
+                            ),
+                            onPressed: widget.onToggleTheme,
+                            tooltip: 'Сменить тему',
+                          ),
+                          const SizedBox(width: 4),
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.add),
+                            label: const Text('Добавить'),
+                            onPressed: () => _editAdd(),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                          ),
+                        ],
+                      )
+                    ],
+                  ),
+
+                  // Вторая строка: дата слева курсивом
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      DateFormat.yMMMMd().format(DateTime.now()),
+                      style: GoogleFonts.poppins(
+                        fontStyle: FontStyle.italic,
+                        fontSize: 14,
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          ListTile(
-            leading: const Icon(Icons.brightness_6),
-            title: const Text('Сменить тему'),
-            onTap: () {
-              Navigator.of(context).pop();
-              widget.onToggleTheme();
-            },
-          ),
-        ]),
+        ),
       ),
+      body: Padding(
+  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+  child: LayoutBuilder(
+    builder: (context, constraints) {
+      final isPhone = constraints.maxWidth < 600;
+      if (isPhone) {
+        return ListView.builder(
+          itemCount: _habits.length,
+          itemBuilder: (_, i) => SizedBox(height: 120, child: _card(i)),
+        );
+      } else {
+        // На ПК — полоски по несколько в ряд, с max шириной карточки
+        const maxCardWidth = 360.0;
+        final crossAxisCount = (constraints.maxWidth / (maxCardWidth + 16)).floor();
+
+        return GridView.builder(
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 3.5, // полоска (широкая)
+          ),
+          itemCount: _habits.length,
+          itemBuilder: (_, i) => _card(i),
+        );
+      }
+    },
+  ),
+
+
+      ),
+      floatingActionButton: null,
     );
   }
+}
+
+extension _Ctx on BuildContext {
+  ThemeData readTheme() => Theme.of(this);
 }
