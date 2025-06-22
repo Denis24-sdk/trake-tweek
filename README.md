@@ -26,8 +26,8 @@
 1. Установить Flutter: [https://flutter.dev/docs/get-started/install](https://flutter.dev/docs/get-started/install)
 2. Клонировать репозиторий:
     ```bash
-    git clone https://github.com/your-username/habit-tracker.git
-    cd habit-tracker
+    git clone https://github.com/Denis24-sdk/trake-tweek/tree/master
+    cd trake-tweek
     ```
 3. Установить зависимости:
     ```bash
