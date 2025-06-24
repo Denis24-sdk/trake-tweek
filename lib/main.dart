@@ -8,28 +8,46 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:reorderables/reorderables.dart';
 import 'package:uuid/uuid.dart';
+import 'dart:io' show Platform;
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:android_intent_plus/android_intent.dart';
+
+
 
 // Helper function to replace withOpacity
 Color withCustomOpacity(Color color, double opacity) {
   return color.withAlpha((opacity * color.alpha).round());
 }
 
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ru_RU', null);
+  tz.initializeTimeZones();
+
+  // Для Android/iOS получаем реальную зону, для Windows ставим UTC
+  if (Platform.isAndroid || Platform.isIOS) {
+    final String timeZoneName = await FlutterTimezone.getLocalTimezone();
+    tz.setLocalLocation(tz.getLocation(timeZoneName));
+  } else {
+    tz.setLocalLocation(tz.local); // или tz.UTC
+  }
+
   runApp(const HabitTrackerApp());
 }
 
-String capitalizeFirstLetter(String s) {
-  if (s.isEmpty) return s;
-  return s[0].toUpperCase() + s.substring(1);
-}
 
 class HabitTrackerApp extends StatefulWidget {
   const HabitTrackerApp({super.key});
   @override
   State<HabitTrackerApp> createState() => _HabitTrackerAppState();
 }
+
+
 
 class _HabitTrackerAppState extends State<HabitTrackerApp> {
   String _themeName = 'ocean';
@@ -210,14 +228,12 @@ class HabitHomePage extends StatefulWidget {
   final Function(String) onThemeChanged;
   final String currentTheme;
   final Map<String, ThemeData> themes;
-
   const HabitHomePage({
     super.key,
     required this.onThemeChanged,
     required this.currentTheme,
     required this.themes,
   });
-
   @override
   State<HabitHomePage> createState() => _HabitHomePageState();
 }
@@ -231,11 +247,210 @@ class _HabitHomePageState extends State<HabitHomePage> {
   final _random = Random();
   bool _showSettings = false;
   final _scrollController = ScrollController();
+  late FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
+  final AndroidNotificationChannel _channel = const AndroidNotificationChannel(
+    'habit_reminder_channel',
+    'Habit Reminders',
+    description: 'Уведомления о ваших привычках',
+    importance: Importance.max,
+    playSound: true,
+    sound: RawResourceAndroidNotificationSound('notification'),
+    enableVibration: true,
+  );
+
+  // Метод для форматирования времени в 24-часовом формате
+  String formatTimeOfDay24h(TimeOfDay tod) {
+    final h = tod.hour.toString().padLeft(2, '0');
+    final m = tod.minute.toString().padLeft(2, '0');
+    return '$h:$m';
+  }
 
   @override
   void initState() {
     super.initState();
+    _initNotifications();
     _load();
+  }
+
+  Future<void> _initNotifications() async {
+    flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
+    // Инициализация для Android
+    const AndroidInitializationSettings initializationSettingsAndroid =
+    AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    // Инициализация для iOS
+    const DarwinInitializationSettings initializationSettingsIOS =
+    DarwinInitializationSettings(
+      requestSoundPermission: true,
+      requestBadgePermission: true,
+      requestAlertPermission: true,
+    );
+
+    final InitializationSettings initializationSettings = InitializationSettings(
+      android: initializationSettingsAndroid,
+      iOS: initializationSettingsIOS,
+    );
+
+    await flutterLocalNotificationsPlugin.initialize(
+      initializationSettings,
+      onDidReceiveNotificationResponse: (details) {},
+    );
+
+    // Создаем канал уведомлений (только для Android)
+    if (Platform.isAndroid) {
+      await flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(_channel);
+    }
+
+    // Запрашиваем разрешения
+    await _requestPermissions();
+  }
+
+  Future<void> _requestPermissions() async {
+    if (Platform.isIOS) {
+      await flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    } else if (Platform.isAndroid) {
+      await Permission.notification.request();
+    }
+  }
+
+  Future<void> scheduleNotification(Habit habit) async {
+    if (habit.reminderTime == null) {
+      await flutterLocalNotificationsPlugin.cancel(habit.id.hashCode);
+      return;
+    }
+
+    // Проверяем разрешения
+    if (Platform.isAndroid && await Permission.notification.isDenied) {
+      await _requestPermissions();
+      return;
+    }
+
+    final now = tz.TZDateTime.now(tz.local);
+
+    // ТЕСТ: Уведомление через 10 секунд
+    final testDate = now.add(const Duration(seconds: 10));
+    debugPrint('ТЕСТ: Планируем уведомление на $testDate');
+
+    try {
+      // Тестовое уведомление через 10 секунд
+      await flutterLocalNotificationsPlugin.zonedSchedule(
+        habit.id.hashCode + 1000, // +1000 для уникальности ID
+        'ТЕСТ: Напоминание о привычке',
+        'Это тест для: ${habit.name}',
+        testDate,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _channel.id,
+            _channel.name,
+            channelDescription: _channel.description,
+            importance: Importance.max,
+            priority: Priority.high,
+            enableVibration: true,
+            autoCancel: true,
+            colorized: true,
+            color: habit.color != null
+                ? Color(habit.color!.value)
+                : Theme.of(context).colorScheme.primary,
+          ),
+          iOS: const DarwinNotificationDetails(),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+
+      // Оригинальное уведомление
+      var scheduledDate = tz.TZDateTime(
+        tz.local,
+        now.year,
+        now.month,
+        now.day,
+        habit.reminderTime!.hour,
+        habit.reminderTime!.minute,
+      );
+
+      if (scheduledDate.isBefore(now)) {
+        scheduledDate = scheduledDate.add(const Duration(days: 1));
+      }
+
+      await flutterLocalNotificationsPlugin.zonedSchedule(
+        habit.id.hashCode,
+        'Напоминание о привычке',
+        habit.name,
+        scheduledDate,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _channel.id,
+            _channel.name,
+            channelDescription: _channel.description,
+            importance: Importance.max,
+            priority: Priority.high,
+            enableVibration: true,
+            autoCancel: true,
+            colorized: true,
+            color: habit.color != null
+                ? Color(habit.color!.value)
+                : Theme.of(context).colorScheme.primary,
+          ),
+          iOS: const DarwinNotificationDetails(),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+
+      debugPrint('Уведомление запланировано для ${habit.name} на $scheduledDate');
+    } catch (e) {
+      debugPrint('Ошибка при планировании уведомления: $e');
+      if (e.toString().contains('exact_alarms_not_permitted')) {
+        showExactAlarmDialog();
+      }
+    }
+  }
+
+
+
+  void showExactAlarmDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Требуется разрешение'),
+        content: const Text(
+          'Для точных напоминаний требуется разрешение на использование точных будильников.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Отмена'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              openExactAlarmSettings();
+            },
+            child: const Text('Настройки'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void openExactAlarmSettings() {
+    if (Platform.isAndroid) {
+      const AndroidIntent intent = AndroidIntent(
+        action: 'android.settings.REQUEST_SCHEDULE_EXACT_ALARM',
+      );
+      intent.launch();
+    }
   }
 
   Future<void> _load() async {
@@ -243,28 +458,21 @@ class _HabitHomePageState extends State<HabitHomePage> {
       final p = await SharedPreferences.getInstance();
       final s = p.getString('habits');
       if (s != null && s.isNotEmpty) {
-        try {
-          final list = jsonDecode(s) as List;
-          _habits.clear();
-          for (var item in list) {
-            try {
-              _habits.add(Habit.fromJson(item));
-            } catch (e) {
-              debugPrint('Error parsing habit item: $e');
-            }
+        final list = jsonDecode(s) as List;
+        _habits.clear();
+        for (var item in list) {
+          try {
+            _habits.add(Habit.fromJson(item));
+          } catch (e) {
+            debugPrint('Error parsing habit item: $e');
           }
-        } catch (e) {
-          debugPrint('Error decoding habits JSON: $e');
-          await p.remove('habits');
         }
       }
       _sortList();
     } catch (e) {
       debugPrint('Error loading habits: $e');
     } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -280,11 +488,9 @@ class _HabitHomePageState extends State<HabitHomePage> {
         final aMinutes = a.reminderTime!.hour * 60 + a.reminderTime!.minute;
         final bMinutes = b.reminderTime!.hour * 60 + b.reminderTime!.minute;
         return aMinutes.compareTo(bMinutes);
-      }
-      else if (a.reminderTime != null && b.reminderTime == null) {
+      } else if (a.reminderTime != null && b.reminderTime == null) {
         return -1;
-      }
-      else if (a.reminderTime == null && b.reminderTime != null) {
+      } else if (a.reminderTime == null && b.reminderTime != null) {
         return 1;
       }
       return b.createdAt.compareTo(a.createdAt);
@@ -306,6 +512,98 @@ class _HabitHomePageState extends State<HabitHomePage> {
     return colors[_random.nextInt(colors.length)];
   }
 
+  Future<void> _scheduleNotification(Habit habit) async {
+    if (habit.reminderTime == null) {
+      debugPrint('Отменяем уведомление для ${habit.name}');
+      await flutterLocalNotificationsPlugin.cancel(habit.id.hashCode);
+      return;
+    }
+
+    final now = tz.TZDateTime.now(tz.local);
+    final scheduledDate = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      habit.reminderTime!.hour,
+      habit.reminderTime!.minute,
+    );
+
+    final notifyTime = scheduledDate.isBefore(now)
+        ? scheduledDate.add(const Duration(days: 1))
+        : scheduledDate;
+
+    debugPrint('Планируем уведомление для ${habit.name} на $notifyTime');
+
+    await flutterLocalNotificationsPlugin.cancel(habit.id.hashCode);
+
+    final androidDetails = AndroidNotificationDetails(
+      'habit_reminder_channel',
+      'Habit Reminders',
+      channelDescription: 'Уведомления о ваших привычках',
+      importance: Importance.max,
+      priority: Priority.high,
+      ticker: 'ticker',
+    );
+
+    final iosDetails = DarwinNotificationDetails();
+
+    final notificationDetails =
+    NotificationDetails(android: androidDetails, iOS: iosDetails);
+
+    try {
+      await flutterLocalNotificationsPlugin.zonedSchedule(
+        habit.id.hashCode,
+        'Напоминание о привычке',
+        habit.name,
+        notifyTime,
+        notificationDetails,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+    } catch (e) {
+      if (e.toString().contains('exact_alarms_not_permitted')) {
+        _showExactAlarmDialog();
+      } else {
+        rethrow;
+      }
+    }
+  }
+
+  void _showExactAlarmDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Требуется разрешение'),
+        content: const Text(
+          'Для корректной работы уведомлений требуется разрешение на точные будильники. Перейдите в настройки и включите разрешение.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Отмена'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _openExactAlarmSettings();
+            },
+            child: const Text('Открыть настройки'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openExactAlarmSettings() {
+    if (!Platform.isAndroid) return;
+
+    final intent = AndroidIntent(action: 'android.settings.REQUEST_SCHEDULE_EXACT_ALARM');
+    intent.launch();
+  }
+
+
+
   void _editAdd([int? idx]) {
     final isEdit = idx != null;
     if (isEdit) {
@@ -317,6 +615,7 @@ class _HabitHomePageState extends State<HabitHomePage> {
       _pickedTime = null;
     }
     _nameError = null;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -372,7 +671,7 @@ class _HabitHomePageState extends State<HabitHomePage> {
               ListTile(
                 leading: const Icon(Icons.access_time),
                 title: Text(
-                  _pickedTime?.format(context) ?? 'Установить напоминание',
+                  _pickedTime != null ? formatTimeOfDay24h(_pickedTime!) : 'Установить напоминание',
                   style: GoogleFonts.poppins(),
                 ),
                 trailing: IconButton(
@@ -399,7 +698,7 @@ class _HabitHomePageState extends State<HabitHomePage> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     final n = _nameCtrl.text.trim();
                     if (n.isEmpty) {
                       st(() => _nameError = 'Введите название');
@@ -411,17 +710,24 @@ class _HabitHomePageState extends State<HabitHomePage> {
                     }
                     setState(() {
                       if (isEdit) {
-                        final h = _habits[idx!];
+                        final h = _habits[idx];
                         h.name = n;
                         h.reminderTime = _pickedTime;
                       } else {
-                        _habits.add(Habit(n,
-                            reminderTime: _pickedTime,
-                            color: _getRandomColor()));
+                        _habits.add(Habit(
+                          n,
+                          reminderTime: _pickedTime,
+                          color: _getRandomColor(),
+                        ));
                       }
                       _sortList();
                     });
-                    _save();
+                    await _save();
+
+                    // Планируем уведомление после сохранения
+                    final habit = isEdit ? _habits[idx!] : _habits.last;
+                    await _scheduleNotification(habit);
+
                     Navigator.pop(context);
                   },
                   style: ElevatedButton.styleFrom(
@@ -586,8 +892,30 @@ class _HabitHomePageState extends State<HabitHomePage> {
               ),
             ],
           ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () async {
+              await flutterLocalNotificationsPlugin.show(
+                0,
+                'Тестовое уведомление',
+                'Это тест уведомлений',
+                const NotificationDetails(
+                  android: AndroidNotificationDetails(
+                    'test_channel',
+                    'Тестовый канал',
+                    channelDescription: 'Канал для теста уведомлений',
+                    importance: Importance.max,
+                    priority: Priority.high,
+                  ),
+                  iOS: DarwinNotificationDetails(),
+                ),
+              );
+            },
+            child: Text('Получить уведомление'),
+          ),
         ],
       ),
+
     );
   }
 
@@ -815,6 +1143,11 @@ class _HabitHomePageState extends State<HabitHomePage> {
       ),
     );
   }
+}
+
+String capitalizeFirstLetter(String s) {
+  if (s.isEmpty) return s;
+  return s[0].toUpperCase() + s.substring(1);
 }
 
 class _HabitCard extends StatefulWidget {
