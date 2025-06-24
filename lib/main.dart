@@ -16,13 +16,10 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:android_intent_plus/android_intent.dart';
 
-
-
 // Helper function to replace withOpacity
 Color withCustomOpacity(Color color, double opacity) {
   return color.withAlpha((opacity * color.alpha).round());
 }
-
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,14 +37,11 @@ void main() async {
   runApp(const HabitTrackerApp());
 }
 
-
 class HabitTrackerApp extends StatefulWidget {
   const HabitTrackerApp({super.key});
   @override
   State<HabitTrackerApp> createState() => _HabitTrackerAppState();
 }
-
-
 
 class _HabitTrackerAppState extends State<HabitTrackerApp> {
   String _themeName = 'ocean';
@@ -149,13 +143,14 @@ class Habit {
     this.firstActivationDate,
     this.color
   }) : id = id ?? const Uuid().v4(),
-      createdAt = createdAt ?? DateTime.now(),
-      completedDates = completedDates ?? {};
+        createdAt = createdAt ?? DateTime.now(),
+        completedDates = completedDates ?? {};
 
   bool isCompletedToday() {
     final key = DateFormat('yyyy-MM-dd').format(DateTime.now());
     return completedDates.contains(key);
   }
+
   void toggleToday() {
     final key = DateFormat('yyyy-MM-dd').format(DateTime.now());
     if (completedDates.contains(key)) {
@@ -171,6 +166,7 @@ class Habit {
       completedDates.add(key);
     }
   }
+
   int getProgressForWeek() {
     if (firstActivationDate == null) return 0;
     final days = DateTime.now().difference(firstActivationDate!).inDays;
@@ -181,6 +177,7 @@ class Habit {
     }
     return completedDates.length;
   }
+
   int getCurrentStreak() {
     int streak = 0;
     DateTime d = DateTime.now();
@@ -191,6 +188,7 @@ class Habit {
     }
     return streak;
   }
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
@@ -202,6 +200,7 @@ class Habit {
     'firstActivationDate': firstActivationDate?.toIso8601String(),
     'color': color?.value,
   };
+
   static Habit fromJson(Map<String, dynamic> j) {
     TimeOfDay? rt;
     if (j['reminderTime'] != null) {
@@ -234,6 +233,7 @@ class HabitHomePage extends StatefulWidget {
     required this.currentTheme,
     required this.themes,
   });
+
   @override
   State<HabitHomePage> createState() => _HabitHomePageState();
 }
@@ -322,194 +322,6 @@ class _HabitHomePageState extends State<HabitHomePage> {
     } else if (Platform.isAndroid) {
       await Permission.notification.request();
     }
-  }
-
-  Future<void> scheduleNotification(Habit habit) async {
-    if (habit.reminderTime == null) {
-      await flutterLocalNotificationsPlugin.cancel(habit.id.hashCode);
-      return;
-    }
-
-    // Проверяем разрешения
-    if (Platform.isAndroid && await Permission.notification.isDenied) {
-      await _requestPermissions();
-      return;
-    }
-
-    final now = tz.TZDateTime.now(tz.local);
-
-    // ТЕСТ: Уведомление через 10 секунд
-    final testDate = now.add(const Duration(seconds: 10));
-    debugPrint('ТЕСТ: Планируем уведомление на $testDate');
-
-    try {
-      // Тестовое уведомление через 10 секунд
-      await flutterLocalNotificationsPlugin.zonedSchedule(
-        habit.id.hashCode + 1000, // +1000 для уникальности ID
-        'ТЕСТ: Напоминание о привычке',
-        'Это тест для: ${habit.name}',
-        testDate,
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            _channel.id,
-            _channel.name,
-            channelDescription: _channel.description,
-            importance: Importance.max,
-            priority: Priority.high,
-            enableVibration: true,
-            autoCancel: true,
-            colorized: true,
-            color: habit.color != null
-                ? Color(habit.color!.value)
-                : Theme.of(context).colorScheme.primary,
-          ),
-          iOS: const DarwinNotificationDetails(),
-        ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        matchDateTimeComponents: DateTimeComponents.time,
-      );
-
-      // Оригинальное уведомление
-      var scheduledDate = tz.TZDateTime(
-        tz.local,
-        now.year,
-        now.month,
-        now.day,
-        habit.reminderTime!.hour,
-        habit.reminderTime!.minute,
-      );
-
-      if (scheduledDate.isBefore(now)) {
-        scheduledDate = scheduledDate.add(const Duration(days: 1));
-      }
-
-      await flutterLocalNotificationsPlugin.zonedSchedule(
-        habit.id.hashCode,
-        'Напоминание о привычке',
-        habit.name,
-        scheduledDate,
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            _channel.id,
-            _channel.name,
-            channelDescription: _channel.description,
-            importance: Importance.max,
-            priority: Priority.high,
-            enableVibration: true,
-            autoCancel: true,
-            colorized: true,
-            color: habit.color != null
-                ? Color(habit.color!.value)
-                : Theme.of(context).colorScheme.primary,
-          ),
-          iOS: const DarwinNotificationDetails(),
-        ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        matchDateTimeComponents: DateTimeComponents.time,
-      );
-
-      debugPrint('Уведомление запланировано для ${habit.name} на $scheduledDate');
-    } catch (e) {
-      debugPrint('Ошибка при планировании уведомления: $e');
-      if (e.toString().contains('exact_alarms_not_permitted')) {
-        showExactAlarmDialog();
-      }
-    }
-  }
-
-
-
-  void showExactAlarmDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Требуется разрешение'),
-        content: const Text(
-          'Для точных напоминаний требуется разрешение на использование точных будильников.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Отмена'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              openExactAlarmSettings();
-            },
-            child: const Text('Настройки'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void openExactAlarmSettings() {
-    if (Platform.isAndroid) {
-      const AndroidIntent intent = AndroidIntent(
-        action: 'android.settings.REQUEST_SCHEDULE_EXACT_ALARM',
-      );
-      intent.launch();
-    }
-  }
-
-  Future<void> _load() async {
-    try {
-      final p = await SharedPreferences.getInstance();
-      final s = p.getString('habits');
-      if (s != null && s.isNotEmpty) {
-        final list = jsonDecode(s) as List;
-        _habits.clear();
-        for (var item in list) {
-          try {
-            _habits.add(Habit.fromJson(item));
-          } catch (e) {
-            debugPrint('Error parsing habit item: $e');
-          }
-        }
-      }
-      _sortList();
-    } catch (e) {
-      debugPrint('Error loading habits: $e');
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _save() async {
-    final p = await SharedPreferences.getInstance();
-    await p.setString(
-        'habits', jsonEncode(_habits.map((e) => e.toJson()).toList()));
-  }
-
-  void _sortList() {
-    _habits.sort((a, b) {
-      if (a.reminderTime != null && b.reminderTime != null) {
-        final aMinutes = a.reminderTime!.hour * 60 + a.reminderTime!.minute;
-        final bMinutes = b.reminderTime!.hour * 60 + b.reminderTime!.minute;
-        return aMinutes.compareTo(bMinutes);
-      } else if (a.reminderTime != null && b.reminderTime == null) {
-        return -1;
-      } else if (a.reminderTime == null && b.reminderTime != null) {
-        return 1;
-      }
-      return b.createdAt.compareTo(a.createdAt);
-    });
-  }
-
-  Color _getRandomColor() {
-    final colors = [
-      const Color(0xFF2A9D8F),
-      const Color(0xFFE76F51),
-      const Color(0xFFF4A261),
-      const Color(0xFF9B5DE5),
-      const Color(0xFF00BBF9),
-      const Color(0xFFF15BB5),
-      const Color(0xFF6A67CE),
-      const Color(0xFF4CAF50),
-      const Color(0xFFFF9800),
-    ];
-    return colors[_random.nextInt(colors.length)];
   }
 
   Future<void> _scheduleNotification(Habit habit) async {
@@ -602,7 +414,64 @@ class _HabitHomePageState extends State<HabitHomePage> {
     intent.launch();
   }
 
+  Future<void> _load() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      final s = p.getString('habits');
+      if (s != null && s.isNotEmpty) {
+        final list = jsonDecode(s) as List;
+        _habits.clear();
+        for (var item in list) {
+          try {
+            _habits.add(Habit.fromJson(item));
+          } catch (e) {
+            debugPrint('Error parsing habit item: $e');
+          }
+        }
+      }
+      _sortList();
+    } catch (e) {
+      debugPrint('Error loading habits: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
+  Future<void> _save() async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString(
+        'habits', jsonEncode(_habits.map((e) => e.toJson()).toList()));
+  }
+
+  void _sortList() {
+    _habits.sort((a, b) {
+      if (a.reminderTime != null && b.reminderTime != null) {
+        final aMinutes = a.reminderTime!.hour * 60 + a.reminderTime!.minute;
+        final bMinutes = b.reminderTime!.hour * 60 + b.reminderTime!.minute;
+        return aMinutes.compareTo(bMinutes);
+      } else if (a.reminderTime != null && b.reminderTime == null) {
+        return -1;
+      } else if (a.reminderTime == null && b.reminderTime != null) {
+        return 1;
+      }
+      return b.createdAt.compareTo(a.createdAt);
+    });
+  }
+
+  Color _getRandomColor() {
+    final colors = [
+      const Color(0xFF2A9D8F),
+      const Color(0xFFE76F51),
+      const Color(0xFFF4A261),
+      const Color(0xFF9B5DE5),
+      const Color(0xFF00BBF9),
+      const Color(0xFFF15BB5),
+      const Color(0xFF6A67CE),
+      const Color(0xFF4CAF50),
+      const Color(0xFFFF9800),
+    ];
+    return colors[_random.nextInt(colors.length)];
+  }
 
   void _editAdd([int? idx]) {
     final isEdit = idx != null;
@@ -767,13 +636,34 @@ class _HabitHomePageState extends State<HabitHomePage> {
       },
       onEdit: () => _editAdd(i),
       onDelete: () {
-        setState(() {
-          _habits.removeAt(i);
-          _save();
-        });
+        // Добавлено подтверждение удаления
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Удалить привычку?'),
+            content: Text('Вы уверены, что хотите удалить привычку "${h.name}"?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Отмена'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context); // Закрыть диалог
+                  setState(() {
+                    _habits.removeAt(i);
+                    _save();
+                  });
+                },
+                child: const Text('Удалить', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+        );
       },
     );
   }
+
 
   Widget _emptyState() {
     return Center(
@@ -784,8 +674,8 @@ class _HabitHomePageState extends State<HabitHomePage> {
             Icons.self_improvement,
             size: 100,
             color: withCustomOpacity(
-              Theme.of(context).colorScheme.primary,
-              0.3
+                Theme.of(context).colorScheme.primary,
+                0.3
             ),
           ),
           const SizedBox(height: 20),
@@ -805,8 +695,8 @@ class _HabitHomePageState extends State<HabitHomePage> {
               style: GoogleFonts.poppins(
                 fontSize: 16,
                 color: withCustomOpacity(
-                  Theme.of(context).colorScheme.onSurface,
-                  0.7
+                    Theme.of(context).colorScheme.onSurface,
+                    0.7
                 ),
               ),
               textAlign: TextAlign.center,
@@ -892,30 +782,8 @@ class _HabitHomePageState extends State<HabitHomePage> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () async {
-              await flutterLocalNotificationsPlugin.show(
-                0,
-                'Тестовое уведомление',
-                'Это тест уведомлений',
-                const NotificationDetails(
-                  android: AndroidNotificationDetails(
-                    'test_channel',
-                    'Тестовый канал',
-                    channelDescription: 'Канал для теста уведомлений',
-                    importance: Importance.max,
-                    priority: Priority.high,
-                  ),
-                  iOS: DarwinNotificationDetails(),
-                ),
-              );
-            },
-            child: Text('Получить уведомление'),
-          ),
         ],
       ),
-
     );
   }
 
@@ -943,8 +811,8 @@ class _HabitHomePageState extends State<HabitHomePage> {
               style: GoogleFonts.poppins(
                 fontSize: 14,
                 color: withCustomOpacity(
-                  Theme.of(context).colorScheme.onSurface,
-                  0.7
+                    Theme.of(context).colorScheme.onSurface,
+                    0.7
                 ),
               ),
             ),
@@ -965,183 +833,232 @@ class _HabitHomePageState extends State<HabitHomePage> {
         ),
       );
     }
+
+    final today = capitalizeFirstLetter(
+        DateFormat('EEEE, d MMMM', 'ru_RU').format(DateTime.now())
+    );
+
+    final completedCount = _habits.where((h) => h.isCompletedToday()).length;
+    final totalCount = _habits.length;
+
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
-            // Заголовок с красивым шрифтом
+            // Верхняя панель с заголовком и кнопками
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical:6),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text(
-                    'Мои привычки',
-                    style: GoogleFonts.playfairDisplay(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.onSurface,
+                  // Заголовок с датой в колонке
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Мои привычки',
+                          style: GoogleFonts.playfairDisplay(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 0),
+
+                    Padding(
+                      padding: const EdgeInsets.only(left: 16.0), // Задайте нужный вам отступ слева
+                      child: Text(
+                          today,
+                          style: GoogleFonts.playfairDisplay(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            fontStyle: FontStyle.italic,
+                            color: withCustomOpacity(
+                              Theme.of(context).colorScheme.onSurface,
+                              0.7,
+                            ),
+                          ),
+                      ),
                     ),
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (!_showSettings)
+                ],
+              ),
+            ),
+
+                  // Правая часть с кнопками и счетчиком
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    padding: const EdgeInsets.only(left: 10, right: 4, top: 4, bottom: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Счетчик выполненных привычек
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '$completedCount/$totalCount',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(width: 4),
+
+                        // Кнопка добавления (если не в режиме настроек)
+                        if (!_showSettings)
+                          IconButton(
+                            icon: Icon(
+                              Icons.add_rounded,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                            iconSize: 24,
+                            onPressed: () => _editAdd(),
+                            tooltip: 'Добавить привычку',
+                            style: IconButton.styleFrom(
+                              shape: const CircleBorder(),
+                              padding: EdgeInsets.zero,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
+
+                        // Кнопка настроек/закрытия
                         IconButton(
-                          icon: const Icon(Icons.add),
-                          color: Theme.of(context).colorScheme.onSurface,
-                          iconSize: 28,
-                          onPressed: () => _editAdd(),
-                          tooltip: 'Добавить привычку',
+                          icon: Icon(
+                            _showSettings ? Icons.close_rounded : Icons.settings_rounded,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                          iconSize: 24,
+                          onPressed: () {
+                            setState(() => _showSettings = !_showSettings);
+                          },
+                          tooltip: _showSettings ? 'Закрыть' : 'Настройки',
+                          style: IconButton.styleFrom(
+                            shape: const CircleBorder(),
+                            padding: EdgeInsets.zero,
+                            visualDensity: VisualDensity.compact,
+                          ),
                         ),
-                      IconButton(
-                        icon: Icon(
-                          _showSettings ? Icons.close : Icons.settings,
-                          color: Theme.of(context).colorScheme.onSurface,
-                          size: 28,
-                        ),
-                        onPressed: () {
-                          setState(() => _showSettings = !_showSettings);
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  Text(
-                    capitalizeFirstLetter(
-                      DateFormat('EEEE, d MMMM', 'ru_RU').format(DateTime.now()),
-                    ),
-                    style: GoogleFonts.playfairDisplay(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      fontStyle: FontStyle.italic,
-                      color: withCustomOpacity(
-                        Theme.of(context).colorScheme.onSurface,
-                        0.8
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    '${_habits.where((h) => h.isCompletedToday()).length}/${_habits.length}',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 10),
+
+            const SizedBox(height: 8),
+
+            // Основной контент
             Expanded(
               child: _showSettings
                   ? _settingsPanel()
                   : _habits.isEmpty
-                      ? _emptyState()
-                      : LayoutBuilder(
-                          builder: (context, constraints) {
-                            if (constraints.maxWidth > 600) {
-                              return ReorderableWrap(
-                                spacing: 20,
-                                runSpacing: 20,
-                                padding: const EdgeInsets.all(20),
-                                buildDraggableFeedback: (context, constraints, child) {
-                                  return Transform.scale(
-                                    scale: 1.05,
-                                    child: Material(
-                                      elevation: 8,
-                                      borderRadius: BorderRadius.circular(20),
-                                      child: child,
-                                    ),
-                                  );
-                                },
-                                children: List.generate(_habits.length, (index) {
-                                  return SizedBox(
-                                    key: ValueKey(_habits[index].id),
-                                    width: (constraints.maxWidth - 60) / 2,
-                                    child: _HabitCard(
-                                      habit: _habits[index],
-                                      color: _habits[index].color ?? Theme.of(context).colorScheme.primary,
-                                      onToggle: () {
-                                        setState(() {
-                                          _habits[index].toggleToday();
-                                          _save();
-                                        });
-                                      },
-                                      onEdit: () => _editAdd(index),
-                                      onDelete: () {
-                                        setState(() {
-                                          _habits.removeAt(index);
-                                          _save();
-                                        });
-                                      },
-                                    ),
-                                  );
-                                }),
-                                onReorder: (oldIndex, newIndex) {
+                  ? _emptyState()
+                  : LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth > 600) {
+                    return ReorderableWrap(
+                      spacing: 20,
+                      runSpacing: 20,
+                      padding: const EdgeInsets.all(20),
+                      buildDraggableFeedback: (context, constraints, child) {
+                        return Transform.scale(
+                          scale: 1.05,
+                          child: Material(
+                            elevation: 8,
+                            borderRadius: BorderRadius.circular(20),
+                            child: child,
+                          ),
+                        );
+                      },
+                      children: List.generate(_habits.length, (index) {
+                        return SizedBox(
+                          key: ValueKey(_habits[index].id),
+                          width: (constraints.maxWidth - 60) / 2,
+                          child: _HabitCard(
+                            habit: _habits[index],
+                            color: _habits[index].color ?? Theme.of(context).colorScheme.primary,
+                            onToggle: () {
+                              setState(() {
+                                _habits[index].toggleToday();
+                                _save();
+                              });
+                            },
+                            onEdit: () => _editAdd(index),
+                            onDelete: () {
+                              setState(() {
+                                _habits.removeAt(index);
+                                _save();
+                              });
+                            },
+                          ),
+                        );
+                      }),
+                      onReorder: (oldIndex, newIndex) {
+                        setState(() {
+                          final habit = _habits.removeAt(oldIndex);
+                          _habits.insert(newIndex, habit);
+                          _save();
+                        });
+                      },
+                    );
+                  } else {
+                    return ReorderableColumn(
+                      scrollController: _scrollController,
+                      onReorder: (oldIndex, newIndex) {
+                        setState(() {
+                          if (oldIndex < newIndex) newIndex--;
+                          final habit = _habits.removeAt(oldIndex);
+                          _habits.insert(newIndex, habit);
+                          _save();
+                        });
+                      },
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (int i = 0; i < _habits.length; i++)
+                          KeyedSubtree(
+                            key: ValueKey(_habits[i].id),
+                            child: Padding(
+                              padding: const EdgeInsets.only(
+                                  left: 20, right: 20, bottom: 20),
+                              child: _HabitCard(
+                                habit: _habits[i],
+                                color: _habits[i].color ?? Theme.of(context).colorScheme.primary,
+                                onToggle: () {
                                   setState(() {
-                                    final habit = _habits.removeAt(oldIndex);
-                                    _habits.insert(newIndex, habit);
+                                    _habits[i].toggleToday();
                                     _save();
                                   });
                                 },
-                              );
-                            }
-                            else {
-                              return ReorderableColumn(
-                                scrollController: _scrollController,
-                                onReorder: (oldIndex, newIndex) {
+                                onEdit: () => _editAdd(i),
+                                onDelete: () {
                                   setState(() {
-                                    if (oldIndex < newIndex) newIndex--;
-                                    final habit = _habits.removeAt(oldIndex);
-                                    _habits.insert(newIndex, habit);
+                                    _habits.removeAt(i);
                                     _save();
                                   });
                                 },
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  for (int i = 0; i < _habits.length; i++)
-                                    KeyedSubtree(
-                                      key: ValueKey(_habits[i].id),
-                                      child: Padding(
-                                        padding: const EdgeInsets.only(
-                                            left: 20, right: 20, bottom: 20),
-                                        child: _HabitCard(
-                                          habit: _habits[i],
-                                          color: _habits[i].color ?? Theme.of(context).colorScheme.primary,
-                                          onToggle: () {
-                                            setState(() {
-                                              _habits[i].toggleToday();
-                                              _save();
-                                            });
-                                          },
-                                          onEdit: () => _editAdd(i),
-                                          onDelete: () {
-                                            setState(() {
-                                              _habits.removeAt(i);
-                                              _save();
-                                            });
-                                          },
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              );
-                            }
-                          },
-                        ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  }
+                },
+              ),
             ),
           ],
         ),
       ),
-    );
+    );;
   }
 }
 
@@ -1252,8 +1169,8 @@ class _HabitCardState extends State<_HabitCard> {
                                     value: progress / 7,
                                     strokeWidth: 8,
                                     backgroundColor: withCustomOpacity(
-                                      Theme.of(context).colorScheme.onSurface,
-                                      0.1
+                                        Theme.of(context).colorScheme.onSurface,
+                                        0.1
                                     ),
                                     color: color,
                                   ),
@@ -1294,8 +1211,8 @@ class _HabitCardState extends State<_HabitCard> {
                                     fontSize: 12,
                                     fontStyle: FontStyle.italic,
                                     color: withCustomOpacity(
-                                      Theme.of(context).colorScheme.onSurface,
-                                      0.7
+                                        Theme.of(context).colorScheme.onSurface,
+                                        0.7
                                     ),
                                   ),
                                 )],
@@ -1314,8 +1231,8 @@ class _HabitCardState extends State<_HabitCard> {
                             horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: withCustomOpacity(
-                            Theme.of(context).colorScheme.secondary,
-                            0.2
+                              Theme.of(context).colorScheme.secondary,
+                              0.2
                           ),
                           borderRadius: BorderRadius.circular(12),
                         ),
