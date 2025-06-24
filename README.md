@@ -28,7 +28,7 @@ _(Файлы для скачивания и установки добавлю к
 1. Установить Flutter: [https://flutter.dev/docs/get-started/install](https://flutter.dev/docs/get-started/install)
 2. Клонировать репозиторий:
     ```bash
-    git clone https://github.com/Denis24-sdk/trake-tweek/tree/master
+    git clone https://github.com/Denis24-sdk/trake-tweek.git
     cd trake-tweek
     ```
 3. Установить зависимости:
