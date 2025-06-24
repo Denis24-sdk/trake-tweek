@@ -27,7 +27,7 @@ _(Файлы для скачивания и установки добавлю к
 
 _(На остальные системы скомпилируйте сами. Как скомпилировать под другую систему/платформу посмотрите в пункте ниже.)_
 
-| Версия    | Windows | Android |
+| Версия    | Android |  Windows |
 |-----------|---------|---------|
 | v1.0      |[arm64-v8a](https://github.com/Denis24-sdk/trake-tweek/releases/download/v1.0/trake-tweek.apk)|[64x](https://github.com/Denis24-sdk/trake-tweek/releases/download/v1.0/Trake-tweek.zip)|  
 
