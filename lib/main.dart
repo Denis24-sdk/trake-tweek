@@ -26,12 +26,11 @@ void main() async {
   await initializeDateFormatting('ru_RU', null);
   tz.initializeTimeZones();
 
-  // Для Android/iOS получаем реальную зону, для Windows ставим UTC
   if (Platform.isAndroid || Platform.isIOS) {
     final String timeZoneName = await FlutterTimezone.getLocalTimezone();
     tz.setLocalLocation(tz.getLocation(timeZoneName));
   } else {
-    tz.setLocalLocation(tz.local); // или tz.UTC
+    tz.setLocalLocation(tz.local);
   }
 
   runApp(const HabitTrackerApp());
@@ -44,67 +43,71 @@ class HabitTrackerApp extends StatefulWidget {
 }
 
 class _HabitTrackerAppState extends State<HabitTrackerApp> {
-  String _themeName = 'ocean';
+  String _themeName = 'serene';
   final Map<String, ThemeData> _themes = {
-    'ocean': ThemeData(
+    'serene': ThemeData(
       colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF2A9D8F),
+        seedColor: const Color(0xFF6C5CE7),
         brightness: Brightness.dark,
-        primary: const Color(0xFF2A9D8F),
-        secondary: const Color(0xFFE76F51),
-        surface: const Color(0xFF1D3340),
+        primary: const Color(0xFF6C5CE7),
+        secondary: const Color(0xFF00CEC9),
+        surface: const Color(0xFF2D3436),
+        background: const Color(0xFF1E272E),
       ),
       textTheme: GoogleFonts.poppinsTextTheme().apply(
-        bodyColor: const Color(0xFFE9F1F7),
-        displayColor: const Color(0xFFE9F1F7),
+        bodyColor: const Color(0xFFF5F6FA),
+        displayColor: const Color(0xFFF5F6FA),
       ),
       useMaterial3: true,
-      scaffoldBackgroundColor: const Color(0xFF15202B),
+      scaffoldBackgroundColor: const Color(0xFF1E272E),
     ),
     'sunset': ThemeData(
       colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFFE76F51),
+        seedColor: const Color(0xFFE17055),
         brightness: Brightness.dark,
-        primary: const Color(0xFFE76F51),
-        secondary: const Color(0xFFF4A261),
-        surface: const Color(0xFF2A1E2C),
+        primary: const Color(0xFFE17055),
+        secondary: const Color(0xFFFDCB6E),
+        surface: const Color(0xFF2D3436),
+        background: const Color(0xFF1E272E),
       ),
       textTheme: GoogleFonts.poppinsTextTheme().apply(
-        bodyColor: const Color(0xFFFDF0E0),
-        displayColor: const Color(0xFFFDF0E0),
+        bodyColor: const Color(0xFFF5F6FA),
+        displayColor: const Color(0xFFF5F6FA),
       ),
       useMaterial3: true,
-      scaffoldBackgroundColor: const Color(0xFF1E1520),
+      scaffoldBackgroundColor: const Color(0xFF1E272E),
+    ),
+    'ocean': ThemeData(
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF0984E3),
+        brightness: Brightness.dark,
+        primary: const Color(0xFF0984E3),
+        secondary: const Color(0xFF00CEC9),
+        surface: const Color(0xFF2D3436),
+        background: const Color(0xFF1E272E),
+      ),
+      textTheme: GoogleFonts.poppinsTextTheme().apply(
+        bodyColor: const Color(0xFFF5F6FA),
+        displayColor: const Color(0xFFF5F6FA),
+      ),
+      useMaterial3: true,
+      scaffoldBackgroundColor: const Color(0xFF1E272E),
     ),
     'forest': ThemeData(
       colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF2A9D8F),
+        seedColor: const Color(0xFF00B894),
         brightness: Brightness.dark,
-        primary: const Color(0xFF2A9D8F),
-        secondary: const Color(0xFFA7C957),
-        surface: const Color(0xFF1A2A1D),
+        primary: const Color(0xFF00B894),
+        secondary: const Color(0xFF55EFC4),
+        surface: const Color(0xFF2D3436),
+        background: const Color(0xFF1E272E),
       ),
       textTheme: GoogleFonts.poppinsTextTheme().apply(
-        bodyColor: const Color(0xFFE8F5E9),
-        displayColor: const Color(0xFFE8F5E9),
+        bodyColor: const Color(0xFFF5F6FA),
+        displayColor: const Color(0xFFF5F6FA),
       ),
       useMaterial3: true,
-      scaffoldBackgroundColor: const Color(0xFF121E14),
-    ),
-    'orchid': ThemeData(
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF9B5DE5),
-        brightness: Brightness.dark,
-        primary: const Color(0xFF9B5DE5),
-        secondary: const Color(0xFFF15BB5),
-        surface: const Color(0xFF251A2F),
-      ),
-      textTheme: GoogleFonts.poppinsTextTheme().apply(
-        bodyColor: const Color(0xFFF5E6FF),
-        displayColor: const Color(0xFFF5E6FF),
-      ),
-      useMaterial3: true,
-      scaffoldBackgroundColor: const Color(0xFF1A1121),
+      scaffoldBackgroundColor: const Color(0xFF1E272E),
     ),
   };
 
@@ -134,6 +137,7 @@ class Habit {
   Set<String> completedDates;
   DateTime? firstActivationDate;
   Color? color;
+  String? emoji;
 
   Habit(this.name, {
     String? id,
@@ -141,7 +145,8 @@ class Habit {
     DateTime? createdAt,
     Set<String>? completedDates,
     this.firstActivationDate,
-    this.color
+    this.color,
+    this.emoji,
   }) : id = id ?? const Uuid().v4(),
         createdAt = createdAt ?? DateTime.now(),
         completedDates = completedDates ?? {};
@@ -199,6 +204,7 @@ class Habit {
     'completedDates': completedDates.toList(),
     'firstActivationDate': firstActivationDate?.toIso8601String(),
     'color': color?.value,
+    'emoji': emoji,
   };
 
   static Habit fromJson(Map<String, dynamic> j) {
@@ -219,6 +225,7 @@ class Habit {
           ? DateTime.parse(j['firstActivationDate'])
           : null,
       color: j['color'] != null ? Color(j['color']) : null,
+      emoji: j['emoji'],
     );
   }
 }
@@ -258,12 +265,12 @@ class _HabitHomePageState extends State<HabitHomePage> {
     enableVibration: true,
   );
 
-  // Метод для форматирования времени в 24-часовом формате
-  String formatTimeOfDay24h(TimeOfDay tod) {
-    final h = tod.hour.toString().padLeft(2, '0');
-    final m = tod.minute.toString().padLeft(2, '0');
-    return '$h:$m';
-  }
+  // Список доступных эмодзи для привычек
+  final List<String> _availableEmojis = [
+    '🏃', '📖', '💧', '🍎', '🏋️', '🧘', '🚭', '🛌', '🧠', '✍️',
+    '🎯', '🌱', '☀️', '🌙', '🧹', '🚿', '🍏', '🥗', '🚶', '💪'
+  ];
+  String? _selectedEmoji;
 
   @override
   void initState() {
@@ -275,11 +282,9 @@ class _HabitHomePageState extends State<HabitHomePage> {
   Future<void> _initNotifications() async {
     flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
-    // Инициализация для Android
     const AndroidInitializationSettings initializationSettingsAndroid =
     AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    // Инициализация для iOS
     const DarwinInitializationSettings initializationSettingsIOS =
     DarwinInitializationSettings(
       requestSoundPermission: true,
@@ -297,7 +302,6 @@ class _HabitHomePageState extends State<HabitHomePage> {
       onDidReceiveNotificationResponse: (details) {},
     );
 
-    // Создаем канал уведомлений (только для Android)
     if (Platform.isAndroid) {
       await flutterLocalNotificationsPlugin
           .resolvePlatformSpecificImplementation<
@@ -305,7 +309,6 @@ class _HabitHomePageState extends State<HabitHomePage> {
           ?.createNotificationChannel(_channel);
     }
 
-    // Запрашиваем разрешения
     await _requestPermissions();
   }
 
@@ -460,17 +463,186 @@ class _HabitHomePageState extends State<HabitHomePage> {
 
   Color _getRandomColor() {
     final colors = [
-      const Color(0xFF2A9D8F),
-      const Color(0xFFE76F51),
-      const Color(0xFFF4A261),
-      const Color(0xFF9B5DE5),
-      const Color(0xFF00BBF9),
-      const Color(0xFFF15BB5),
-      const Color(0xFF6A67CE),
-      const Color(0xFF4CAF50),
-      const Color(0xFFFF9800),
+      const Color(0xFF6C5CE7),
+      const Color(0xFF00CEC9),
+      const Color(0xFFE17055),
+      const Color(0xFFFDCB6E),
+      const Color(0xFF0984E3),
+      const Color(0xFF00B894),
+      const Color(0xFF55EFC4),
+      const Color(0xFFA29BFE),
+      const Color(0xFFFD79A8),
     ];
     return colors[_random.nextInt(colors.length)];
+  }
+
+  void _editHabit(int index) {
+    final habit = _habits[index];
+    _nameCtrl.text = habit.name;
+    _pickedTime = habit.reminderTime;
+    _selectedEmoji = habit.emoji;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+          left: 20,
+          right: 20,
+          top: 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Редактировать привычку',
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Поле ввода названия
+            TextField(
+              controller: _nameCtrl,
+              decoration: InputDecoration(
+                labelText: 'Название привычки',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                prefixIcon: const Icon(Icons.edit),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Выбор времени
+            ListTile(
+              leading: const Icon(Icons.access_time),
+              title: Text(
+                _pickedTime != null
+                    ? _pickedTime!.format(context)
+                    : 'Добавить напоминание',
+              ),
+              trailing: _pickedTime != null
+                  ? IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => setState(() => _pickedTime = null),
+              )
+                  : null,
+              onTap: () async {
+                final time = await showTimePicker(
+                  context: context,
+                  initialTime: _pickedTime ?? TimeOfDay.now(),
+                );
+                if (time != null) setState(() => _pickedTime = time);
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Кнопки действий
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Отмена'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () {
+                      if (_nameCtrl.text.trim().isEmpty) return;
+
+                      setState(() {
+                        habit.name = _nameCtrl.text.trim();
+                        habit.reminderTime = _pickedTime;
+                        habit.emoji = _selectedEmoji;
+                        _save();
+                        _scheduleNotification(habit);
+                      });
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Сохранить'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+  void _deleteHabit(int index) {
+    final habit = _habits[index];
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Удалить привычку?'),
+        content: Text('Вы точно хотите удалить привычку "${habit.name}"?'),
+        actions: [
+          // Кнопка отмены
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Отмена',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+          ),
+
+          // Кнопка удаления
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Закрыть диалог
+              setState(() {
+                _habits.removeAt(index);
+                _save();
+                // Отменить уведомление
+                flutterLocalNotificationsPlugin.cancel(habit.id.hashCode);
+              });
+
+              // Показать подтверждение удаления
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Привычка "${habit.name}" удалена'),
+                  action: SnackBarAction(
+                    label: 'Отменить',
+                    onPressed: () {
+                      setState(() {
+                        _habits.insert(index, habit);
+                        _save();
+                        if (habit.reminderTime != null) {
+                          _scheduleNotification(habit);
+                        }
+                      });
+                    },
+                  ),
+                ),
+              );
+            },
+            child: Text(
+              'Удалить',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.error,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _editAdd([int? idx]) {
@@ -479,9 +651,11 @@ class _HabitHomePageState extends State<HabitHomePage> {
       final h = _habits[idx];
       _nameCtrl.text = h.name;
       _pickedTime = h.reminderTime;
+      _selectedEmoji = h.emoji;
     } else {
       _nameCtrl.clear();
       _pickedTime = null;
+      _selectedEmoji = _availableEmojis[_random.nextInt(_availableEmojis.length)];
     }
     _nameError = null;
 
@@ -494,6 +668,13 @@ class _HabitHomePageState extends State<HabitHomePage> {
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 20,
+                spreadRadius: 5,
+              )
+            ],
           ),
           padding: EdgeInsets.only(
             bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -513,6 +694,37 @@ class _HabitHomePageState extends State<HabitHomePage> {
                 ),
               ),
               const SizedBox(height: 20),
+
+              // Эмоджи пикер
+              SizedBox(
+                height: 60,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _availableEmojis.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (ctx, i) => GestureDetector(
+                    onTap: () => st(() => _selectedEmoji = _availableEmojis[i]),
+                    child: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: _selectedEmoji == _availableEmojis[i]
+                            ? Theme.of(context).colorScheme.primary.withOpacity(0.2)
+                            : Theme.of(context).colorScheme.surfaceVariant,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Center(
+                        child: Text(
+                          _availableEmojis[i],
+                          style: const TextStyle(fontSize: 24),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 15),
+
               TextField(
                 controller: _nameCtrl,
                 maxLength: 25,
@@ -526,9 +738,20 @@ class _HabitHomePageState extends State<HabitHomePage> {
                   errorStyle: GoogleFonts.poppins(),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).dividerColor,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).dividerColor,
+                    ),
                   ),
                   prefixIcon: const Icon(Icons.text_fields),
                   counterText: '',
+                  filled: true,
+                  fillColor: Theme.of(context).colorScheme.surfaceVariant,
                 ),
                 onChanged: (_) {
                   if (_nameError != null) {
@@ -537,35 +760,65 @@ class _HabitHomePageState extends State<HabitHomePage> {
                 },
               ),
               const SizedBox(height: 15),
-              ListTile(
-                leading: const Icon(Icons.access_time),
-                title: Text(
-                  _pickedTime != null ? formatTimeOfDay24h(_pickedTime!) : 'Установить напоминание',
-                  style: GoogleFonts.poppins(),
-                ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () => st(() => _pickedTime = null),
-                ),
-                onTap: () async {
-                  final t = await showTimePicker(
-                    context: context,
-                    initialTime: _pickedTime ?? TimeOfDay.now(),
-                  );
-                  if (t != null) st(() => _pickedTime = t);
-                },
-                shape: RoundedRectangleBorder(
+
+              // Время напоминания
+              Material(
+                borderRadius: BorderRadius.circular(16),
+                color: Theme.of(context).colorScheme.surfaceVariant,
+                child: InkWell(
                   borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(
-                    color: Theme.of(context).dividerColor,
-                    width: 1,
+                  onTap: () async {
+                    final t = await showTimePicker(
+                      context: context,
+                      initialTime: _pickedTime ?? TimeOfDay.now(),
+                      builder: (context, child) => Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: ColorScheme.light(
+                            primary: Theme.of(context).colorScheme.primary,
+                            onPrimary: Theme.of(context).colorScheme.onPrimary,
+                            surface: Theme.of(context).colorScheme.surface,
+                            onSurface: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        child: child!,
+                      ),
+                    );
+                    if (t != null) st(() => _pickedTime = t);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.access_time,
+                            color: Theme.of(context).colorScheme.onSurface),
+                        const SizedBox(width: 12),
+                        Text(
+                          _pickedTime != null
+                              ? _pickedTime!.format(context)
+                              : 'Установить напоминание',
+                          style: GoogleFonts.poppins(),
+                        ),
+                        const Spacer(),
+                        if (_pickedTime != null)
+                          IconButton(
+                            icon: Icon(Icons.clear,
+                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
+                            onPressed: () => st(() => _pickedTime = null),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
+
+              // Кнопка сохранения
               SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 56,
                 child: ElevatedButton(
                   onPressed: () async {
                     final n = _nameCtrl.text.trim();
@@ -582,18 +835,19 @@ class _HabitHomePageState extends State<HabitHomePage> {
                         final h = _habits[idx];
                         h.name = n;
                         h.reminderTime = _pickedTime;
+                        h.emoji = _selectedEmoji;
                       } else {
                         _habits.add(Habit(
                           n,
                           reminderTime: _pickedTime,
                           color: _getRandomColor(),
+                          emoji: _selectedEmoji,
                         ));
                       }
                       _sortList();
                     });
                     await _save();
 
-                    // Планируем уведомление после сохранения
                     final habit = isEdit ? _habits[idx!] : _habits.last;
                     await _scheduleNotification(habit);
 
@@ -604,9 +858,11 @@ class _HabitHomePageState extends State<HabitHomePage> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
+                    elevation: 2,
+                    shadowColor: Theme.of(context).colorScheme.primary.withOpacity(0.3),
                   ),
                   child: Text(
-                    isEdit ? 'Сохранить' : 'Создать',
+                    isEdit ? 'Сохранить изменения' : 'Создать привычку',
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -623,48 +879,6 @@ class _HabitHomePageState extends State<HabitHomePage> {
     );
   }
 
-  Widget _habitCard(int i) {
-    final h = _habits[i];
-    return _HabitCard(
-      habit: h,
-      color: h.color ?? Theme.of(context).colorScheme.primary,
-      onToggle: () {
-        setState(() {
-          h.toggleToday();
-          _save();
-        });
-      },
-      onEdit: () => _editAdd(i),
-      onDelete: () {
-        // Добавлено подтверждение удаления
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Удалить привычку?'),
-            content: Text('Вы уверены, что хотите удалить привычку "${h.name}"?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Отмена'),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context); // Закрыть диалог
-                  setState(() {
-                    _habits.removeAt(i);
-                    _save();
-                  });
-                },
-                child: const Text('Удалить', style: TextStyle(color: Colors.red)),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-
   Widget _emptyState() {
     return Center(
       child: Column(
@@ -678,20 +892,20 @@ class _HabitHomePageState extends State<HabitHomePage> {
                 0.3
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           Text(
-            'Пока нет привычек',
+            'Начните свой путь к успеху',
             style: GoogleFonts.poppins(
               fontSize: 24,
               fontWeight: FontWeight.w600,
               color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40),
             child: Text(
-              'Начните добавлять свои привычки для отслеживания',
+              'Добавьте свою первую привычку и начните отслеживать прогресс',
               style: GoogleFonts.poppins(
                 fontSize: 16,
                 color: withCustomOpacity(
@@ -702,122 +916,259 @@ class _HabitHomePageState extends State<HabitHomePage> {
               textAlign: TextAlign.center,
             ),
           ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: 200,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: () => _editAdd(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
+              child: Text(
+                'Добавить привычку',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w500,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _settingsPanel() {
-    return Container(
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant,
-        borderRadius: BorderRadius.circular(20),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Настройки',
-            style: GoogleFonts.poppins(
-              fontSize: 22,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Цветовая тема',
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: widget.themes.keys.map((themeName) {
-              final isActive = widget.currentTheme == themeName;
-              return ChoiceChip(
-                label: Text(
-                  themeName[0].toUpperCase() + themeName.substring(1),
-                  style: GoogleFonts.poppins(
-                    color: isActive
-                        ? widget.themes[themeName]!.colorScheme.onPrimary
-                        : widget.themes[themeName]!.colorScheme.onSurface,
-                  ),
-                ),
-                selected: isActive,
-                onSelected: (_) => widget.onThemeChanged(themeName),
-                backgroundColor: widget.themes[themeName]!.colorScheme.surface,
-                selectedColor: widget.themes[themeName]!.colorScheme.primary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Статистика',
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 10),
+          // Заголовок с кнопкой назад
           Row(
             children: [
-              _statCard('Привычки', _habits.length.toString()),
-              const SizedBox(width: 15),
-              _statCard(
-                'Выполнено',
-                _habits
-                    .where((h) => h.isCompletedToday())
-                    .length
-                    .toString(),
+              IconButton(
+                icon: Icon(Icons.arrow_back,
+                    color: theme.colorScheme.onSurface),
+                onPressed: () => setState(() => _showSettings = false),
+                splashRadius: 20,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Настройки',
+                style: GoogleFonts.poppins(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.onSurface,
+                ),
               ),
             ],
           ),
+          const SizedBox(height: 24),
+
+          // Секция тем
+          _SectionHeader(
+            title: 'Цветовая тема',
+            icon: Icons.palette_outlined,
+          ),
+          const SizedBox(height: 16),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 3,
+            childAspectRatio: 0.9,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            children: widget.themes.keys.map((themeName) {
+              final themeData = widget.themes[themeName]!;
+              final isActive = widget.currentTheme == themeName;
+
+              return ThemeSelectionCard(
+                themeName: themeName,
+                isActive: isActive,
+                color: themeData.colorScheme.primary,
+                onTap: () => widget.onThemeChanged(themeName),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 32),
+
+          // Секция статистики
+          _SectionHeader(
+            title: 'Ваша статистика',
+            icon: Icons.insights_outlined,
+          ),
+          const SizedBox(height: 16),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            childAspectRatio: 1.3,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            children: [
+              _StatCard(
+                title: 'Привычек',
+                value: _habits.length.toString(),
+                icon: Icons.list_alt_outlined,
+                color: Colors.blue,
+              ),
+              _StatCard(
+                title: 'Сегодня',
+                value: '${_habits.where((h) => h.isCompletedToday()).length}/${_habits.length}',
+                icon: Icons.today_outlined,
+                color: Colors.green,
+              ),
+              _StatCard(
+                title: 'Лучшая серия',
+                value: _habits.isNotEmpty
+                    ? _habits.map((h) => h.getCurrentStreak()).reduce(max).toString()
+                    : '0',
+                icon: Icons.local_fire_department_outlined,
+                color: Colors.orange,
+              ),
+              _StatCard(
+                title: 'Уведомления',
+                value: _habits.where((h) => h.reminderTime != null).length.toString(),
+                icon: Icons.notifications_active_outlined,
+                color: Colors.purple,
+              ),
+            ],
+          ),
+          const SizedBox(height: 32),
+
+          // Секция информации
+          _SectionHeader(
+            title: 'О приложении',
+            icon: Icons.info_outline,
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: theme.colorScheme.outlineVariant,
+                width: 1,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Center(
+                        child: Text(
+                          "TT",
+                          style: GoogleFonts.poppins(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Text(
+                      'Trake-Tweek',
+                      style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                _InfoRow(
+                  icon: Icons.verified_user_outlined,
+                  text: 'Версия 1.0.0',
+                ),
+                const SizedBox(height: 12),
+                _InfoRow(
+                  icon: Icons.update_outlined,
+                  text: 'Последнее обновление: 26.06.2025',
+                ),
+                const SizedBox(height: 12),
+                _InfoRow(
+                  icon: Icons.favorite_outline,
+                  text: 'Разработано с ❤️ для ваших привычек',
+                ),
+                const SizedBox(height: 16),
+                Center(
+                  child: TextButton(
+                    onPressed: () {},
+                    style: TextButton.styleFrom(
+                      foregroundColor: theme.colorScheme.primary,
+                    ),
+                    child: Text(
+                      'Политика конфиденциальности',
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  Widget _statCard(String title, String value) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 15),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: GoogleFonts.poppins(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
-              ),
+
+
+  Widget _statCard(String title, String value, IconData icon) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceVariant,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            color: Theme.of(context).colorScheme.primary,
+            size: 24,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: withCustomOpacity(
-                    Theme.of(context).colorScheme.onSurface,
-                    0.7
-                ),
-              ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -840,6 +1191,9 @@ class _HabitHomePageState extends State<HabitHomePage> {
 
     final completedCount = _habits.where((h) => h.isCompletedToday()).length;
     final totalCount = _habits.length;
+    final completionPercentage = totalCount > 0
+        ? (completedCount / totalCount * 100).round()
+        : 0;
 
     return Scaffold(
       body: SafeArea(
@@ -847,218 +1201,171 @@ class _HabitHomePageState extends State<HabitHomePage> {
           children: [
             // Верхняя панель с заголовком и кнопками
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Заголовок с датой в колонке
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Мои привычки',
-                          style: GoogleFonts.playfairDisplay(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w700,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                        ),
-                        const SizedBox(height: 0),
-
-                    Padding(
-                      padding: const EdgeInsets.only(left: 16.0), // Задайте нужный вам отступ слева
-                      child: Text(
-                          today,
-                          style: GoogleFonts.playfairDisplay(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            fontStyle: FontStyle.italic,
-                            color: withCustomOpacity(
-                              Theme.of(context).colorScheme.onSurface,
-                              0.7,
-                            ),
-                          ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-
-                  // Правая часть с кнопками и счетчиком
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    padding: const EdgeInsets.only(left: 10, right: 4, top: 4, bottom: 4),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Счетчик выполненных привычек
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            '$completedCount/$totalCount',
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Мои привычки',
                             style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(width: 4),
-
-                        // Кнопка добавления (если не в режиме настроек)
-                        if (!_showSettings)
-                          IconButton(
-                            icon: Icon(
-                              Icons.add_rounded,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w700,
                               color: Theme.of(context).colorScheme.onSurface,
                             ),
-                            iconSize: 24,
-                            onPressed: () => _editAdd(),
-                            tooltip: 'Добавить привычку',
-                            style: IconButton.styleFrom(
-                              shape: const CircleBorder(),
-                              padding: EdgeInsets.zero,
-                              visualDensity: VisualDensity.compact,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            today,
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                             ),
                           ),
+                        ],
+                      ),
 
-                        // Кнопка настроек/закрытия
-                        IconButton(
-                          icon: Icon(
-                            _showSettings ? Icons.close_rounded : Icons.settings_rounded,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                          iconSize: 24,
-                          onPressed: () {
-                            setState(() => _showSettings = !_showSettings);
-                          },
-                          tooltip: _showSettings ? 'Закрыть' : 'Настройки',
-                          style: IconButton.styleFrom(
-                            shape: const CircleBorder(),
-                            padding: EdgeInsets.zero,
-                            visualDensity: VisualDensity.compact,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+                      // Кнопки действий
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (!_showSettings)
+                            IconButton(
+                              onPressed: () => _editAdd(),
+                              icon: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.add,
+                                  color: Theme.of(context).colorScheme.onPrimary,
+                                ),
+                              ),
+                            ),
 
-            const SizedBox(height: 8),
+                          const SizedBox(width: 8),
 
-            // Основной контент
-            Expanded(
-              child: _showSettings
-                  ? _settingsPanel()
-                  : _habits.isEmpty
-                  ? _emptyState()
-                  : LayoutBuilder(
-                builder: (context, constraints) {
-                  if (constraints.maxWidth > 600) {
-                    return ReorderableWrap(
-                      spacing: 20,
-                      runSpacing: 20,
-                      padding: const EdgeInsets.all(20),
-                      buildDraggableFeedback: (context, constraints, child) {
-                        return Transform.scale(
-                          scale: 1.05,
-                          child: Material(
-                            elevation: 8,
-                            borderRadius: BorderRadius.circular(20),
-                            child: child,
-                          ),
-                        );
-                      },
-                      children: List.generate(_habits.length, (index) {
-                        return SizedBox(
-                          key: ValueKey(_habits[index].id),
-                          width: (constraints.maxWidth - 60) / 2,
-                          child: _HabitCard(
-                            habit: _habits[index],
-                            color: _habits[index].color ?? Theme.of(context).colorScheme.primary,
-                            onToggle: () {
-                              setState(() {
-                                _habits[index].toggleToday();
-                                _save();
-                              });
-                            },
-                            onEdit: () => _editAdd(index),
-                            onDelete: () {
-                              setState(() {
-                                _habits.removeAt(index);
-                                _save();
-                              });
-                            },
-                          ),
-                        );
-                      }),
-                      onReorder: (oldIndex, newIndex) {
-                        setState(() {
-                          final habit = _habits.removeAt(oldIndex);
-                          _habits.insert(newIndex, habit);
-                          _save();
-                        });
-                      },
-                    );
-                  } else {
-                    return ReorderableColumn(
-                      scrollController: _scrollController,
-                      onReorder: (oldIndex, newIndex) {
-                        setState(() {
-                          if (oldIndex < newIndex) newIndex--;
-                          final habit = _habits.removeAt(oldIndex);
-                          _habits.insert(newIndex, habit);
-                          _save();
-                        });
-                      },
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (int i = 0; i < _habits.length; i++)
-                          KeyedSubtree(
-                            key: ValueKey(_habits[i].id),
-                            child: Padding(
-                              padding: const EdgeInsets.only(
-                                  left: 20, right: 20, bottom: 20),
-                              child: _HabitCard(
-                                habit: _habits[i],
-                                color: _habits[i].color ?? Theme.of(context).colorScheme.primary,
-                                onToggle: () {
-                                  setState(() {
-                                    _habits[i].toggleToday();
-                                    _save();
-                                  });
-                                },
-                                onEdit: () => _editAdd(i),
-                                onDelete: () {
-                                  setState(() {
-                                    _habits.removeAt(i);
-                                    _save();
-                                  });
-                                },
+                          IconButton(
+                            onPressed: () => setState(() => _showSettings = !_showSettings),
+                            icon: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: _showSettings
+                                    ? Theme.of(context).colorScheme.secondary
+                                    : Theme.of(context).colorScheme.surfaceVariant,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                _showSettings ? Icons.close : Icons.settings,
+                                color: _showSettings
+                                    ? Theme.of(context).colorScheme.onSecondary
+                                    : Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                           ),
+                        ],
+                      ),
+                    ],
+                  ),
+
+                  // Прогресс бар
+                  if (!_showSettings && _habits.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Прогресс сегодня',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                            Text(
+                              '$completedCount/$totalCount ($completionPercentage%)',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        LinearProgressIndicator(
+                          value: totalCount > 0 ? completedCount / totalCount : 0,
+                          backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                          color: Theme.of(context).colorScheme.primary,
+                          minHeight: 8,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                       ],
-                    );
-                  }
-                },
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            // Основной контент
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: _showSettings
+                    ? _settingsPanel()
+                    : _habits.isEmpty
+                    ? _emptyState()
+                    : ReorderableColumn(
+                  scrollController: _scrollController,
+                  onReorder: (oldIndex, newIndex) {
+                    setState(() {
+                      if (oldIndex < newIndex) newIndex--;
+                      final habit = _habits.removeAt(oldIndex);
+                      _habits.insert(newIndex, habit);
+                      _save();
+                    });
+                  },
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (int i = 0; i < _habits.length; i++)
+                      KeyedSubtree(
+                        key: ValueKey(_habits[i].id),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                          child: _HabitCard(
+                            habit: _habits[i],
+                            color: _habits[i].color ?? Theme.of(context).colorScheme.primary,
+                            onToggle: () {
+                              setState(() {
+                                _habits[i].toggleToday();
+                                _save();
+                              });
+                            },
+                            onEdit: () => _editHabit(i),
+                            onDelete: () => _deleteHabit(i),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ],
         ),
       ),
-    );;
+    );
   }
 }
 
@@ -1067,12 +1374,13 @@ String capitalizeFirstLetter(String s) {
   return s[0].toUpperCase() + s.substring(1);
 }
 
-class _HabitCard extends StatefulWidget {
+class _HabitCard extends StatelessWidget {
   final Habit habit;
   final VoidCallback onToggle;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final Color color;
+
   const _HabitCard({
     required this.habit,
     required this.onToggle,
@@ -1080,221 +1388,499 @@ class _HabitCard extends StatefulWidget {
     required this.onDelete,
     required this.color,
   });
-  @override
-  _HabitCardState createState() => _HabitCardState();
-}
-
-class _HabitCardState extends State<_HabitCard> {
-  bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
-    final h = widget.habit;
-    final done = h.isCompletedToday();
-    final progress = h.getProgressForWeek();
-    final streak = h.getCurrentStreak();
-    final color = widget.color;
+    final done = habit.isCompletedToday();
+    final progress = habit.getProgressForWeek();
+    final streak = habit.getCurrentStreak();
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: widget.onToggle,
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _hovered = true),
-        onExit: (_) => setState(() => _hovered = false),
-        child: Animate(
-          effects: [
-            ScaleEffect(
-              duration: 300.ms,
-              curve: Curves.easeOutBack,
-              begin: const Offset(0.95, 0.95),
-              end: const Offset(1, 1),
+      onTap: onToggle,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color: theme.colorScheme.surfaceContainerHighest,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
-            if (_hovered)
-              ShakeEffect(
-                hz: 3,
-                duration: 300.ms,
-                curve: Curves.easeInOut,
-              ),
           ],
-          child: Card(
-            elevation: _hovered ? 8 : 4,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    withCustomOpacity(color, 0.15),
-                    withCustomOpacity(color, 0.05),
-                  ],
+        ),
+        child: Stack(
+          children: [
+            // Progress background
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: MediaQuery.of(context).size.width * (progress / 7) * 0.9,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      color.withOpacity(isDark ? 0.2 : 0.15),
+                      color.withOpacity(0.01),
+                    ],
+                  ),
                 ),
               ),
-              child: Stack(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Flexible(
+            ),
+
+            Column(
+              children: [
+                // Main content
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header row
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Emoji
+                          if (habit.emoji != null)
+                            Container(
+                              margin: const EdgeInsets.only(right: 12),
                               child: Text(
-                                h.name,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: Theme.of(context).colorScheme.onSurface,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
+                                habit.emoji!,
+                                style: const TextStyle(fontSize: 28),
                               ),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Stack(
-                              alignment: Alignment.center,
+
+                          // Title and stats
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                SizedBox(
-                                  width: 60,
-                                  height: 60,
-                                  child: CircularProgressIndicator(
-                                    value: progress / 7,
-                                    strokeWidth: 8,
-                                    backgroundColor: withCustomOpacity(
-                                        Theme.of(context).colorScheme.onSurface,
-                                        0.1
-                                    ),
-                                    color: color,
-                                  ),
-                                ),
+                                // Title
                                 Text(
-                                  '$progress/7',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).colorScheme.onSurface,
+                                  habit.name,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: theme.colorScheme.onSurface,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+
+                                // Stats row
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Row(
+                                    children: [
+                                      // Streak
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.local_fire_department,
+                                            size: 16,
+                                            color: streak > 0
+                                                ? Colors.orange
+                                                : theme.colorScheme.outline,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            streak > 0 ? '$streak' : '0',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                              color: streak > 0
+                                                  ? Colors.orange
+                                                  : theme.colorScheme.outline,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+
+                                      const SizedBox(width: 12),
+
+                                      // Progress
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.timeline,
+                                            size: 16,
+                                            color: theme.colorScheme.primary,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '$progress/7',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                              color: theme.colorScheme.primary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+
+                                      if (habit.reminderTime != null) ...[
+                                        const SizedBox(width: 12),
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.access_time,
+                                              size: 14,
+                                              color: theme.colorScheme.outline,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              habit.reminderTime!.format(context),
+                                              style: GoogleFonts.inter(
+                                                fontSize: 12,
+                                                color: theme.colorScheme.outline,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(width: 20),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(Icons.local_fire_department,
-                                        size: 18, color: Colors.orange),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'Серия: $streak дней',
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                        color: Theme.of(context).colorScheme.onSurface,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Создано: ${DateFormat("dd.MM.yyyy").format(h.createdAt)}',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 12,
-                                    fontStyle: FontStyle.italic,
-                                    color: withCustomOpacity(
-                                        Theme.of(context).colorScheme.onSurface,
-                                        0.7
-                                    ),
-                                  ),
-                                )],
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (h.reminderTime != null)
-                    Positioned(
-                      top: 16,
-                      right: 16,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: withCustomOpacity(
-                              Theme.of(context).colorScheme.secondary,
-                              0.2
                           ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.access_time,
-                                size: 14,
-                                color: Theme.of(context).colorScheme.onSurface),
-                            const SizedBox(width: 4),
-                            Text(
-                              h.reminderTime!.format(context),
-                              style: GoogleFonts.poppins(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                            ),
-                          ],
-                        ),
+                        ],
                       ),
-                    ),
-                  Positioned(
-                    bottom: 16,
-                    right: 16,
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.edit,
-                              color: Theme.of(context).colorScheme.onSurface),
-                          onPressed: widget.onEdit,
-                          tooltip: 'Редактировать',
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.delete,
-                              color: Theme.of(context).colorScheme.error),
-                          onPressed: widget.onDelete,
-                          tooltip: 'Удалить',
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (done)
-                    Positioned(
-                      top: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          borderRadius: const BorderRadius.only(
-                            bottomLeft: Radius.circular(12),
+
+                      // Creation date
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Text(
+                          'Создано: ${DateFormat("dd.MM.yy").format(habit.createdAt)}',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: theme.colorScheme.outline,
                           ),
                         ),
-                        child: const Icon(Icons.check, color: Colors.white),
                       ),
+                    ],
+                  ),
+                ),
+
+                // Action buttons bar
+                Container(
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHigh,
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(20),
+                      bottomRight: Radius.circular(20),
                     ),
-                ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _BottomActionButton(
+                        icon: Icons.edit_outlined,
+                        label: 'Изменить',
+                        onPressed: onEdit,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      _BottomActionButton(
+                        icon: Icons.bar_chart,
+                        label: 'Статистика',
+                        onPressed: () {}, // Placeholder
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      _BottomActionButton(
+                        icon: Icons.delete_outline,
+                        label: 'Удалить',
+                        onPressed: onDelete,
+                        color: theme.colorScheme.error,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            if (done)
+              Positioned(
+                top: 16,
+                right: 16,
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 3,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.check,
+                      size: 16,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+
+class _BottomActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+  final Color color;
+
+  const _BottomActionButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        foregroundColor: color,
+        padding: EdgeInsets.zero,
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 18),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+// Вспомогательные виджеты
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final IconData icon;
+
+  const _SectionHeader({
+    required this.title,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 24,
+          color: theme.colorScheme.primary,
+        ),
+        const SizedBox(width: 12),
+        Text(
+          title,
+          style: GoogleFonts.poppins(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class ThemeSelectionCard extends StatelessWidget {
+  final String themeName;
+  final bool isActive;
+  final Color color;
+  final VoidCallback onTap;
+
+  const ThemeSelectionCard({
+    required this.themeName,
+    required this.isActive,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: isActive
+              ? color.withOpacity(0.1)
+              : theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isActive ? color : theme.colorScheme.outlineVariant,
+            width: isActive ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              themeName[0].toUpperCase() + themeName.substring(1),
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+                color: theme.colorScheme.onSurface,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (isActive) ...[
+              const SizedBox(height: 8),
+              Icon(
+                Icons.check_circle,
+                size: 20,
+                color: color,
+              ),
+            ]
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const _StatCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Icon(
+                  icon,
+                  size: 24,
+                  color: color,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              value,
+              style: GoogleFonts.poppins(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: theme.colorScheme.onSurface.withOpacity(0.7),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _InfoRow({
+    required this.icon,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          icon,
+          size: 18,
+          color: theme.colorScheme.onSurface.withOpacity(0.6),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            text,
+            style: GoogleFonts.poppins(
+              fontSize: 15,
+              color: theme.colorScheme.onSurface.withOpacity(0.8),
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 }
