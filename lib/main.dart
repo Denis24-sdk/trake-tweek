@@ -478,105 +478,111 @@ class _HabitHomePageState extends State<HabitHomePage> {
 
   void _editHabit(int index) {
     final habit = _habits[index];
-    _nameCtrl.text = habit.name;
-    _pickedTime = habit.reminderTime;
-    _selectedEmoji = habit.emoji;
+
+
+    final nameController = TextEditingController(text: habit.name);
+    TimeOfDay? currentReminderTime = habit.reminderTime;
+    String? currentEmoji = habit.emoji;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-          left: 20,
-          right: 20,
-          top: 20,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Редактировать привычку',
-              style: GoogleFonts.poppins(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Поле ввода названия
-            TextField(
-              controller: _nameCtrl,
-              decoration: InputDecoration(
-                labelText: 'Название привычки',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+      builder: (_) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 20,
+            right: 20,
+            top: 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Редактировать привычку',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
                 ),
-                prefixIcon: const Icon(Icons.edit),
               ),
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
-            // Выбор времени
-            ListTile(
-              leading: const Icon(Icons.access_time),
-              title: Text(
-                _pickedTime != null
-                    ? _pickedTime!.format(context)
-                    : 'Добавить напоминание',
-              ),
-              trailing: _pickedTime != null
-                  ? IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => setState(() => _pickedTime = null),
-              )
-                  : null,
-              onTap: () async {
-                final time = await showTimePicker(
-                  context: context,
-                  initialTime: _pickedTime ?? TimeOfDay.now(),
-                );
-                if (time != null) setState(() => _pickedTime = time);
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Кнопки действий
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Отмена'),
+              // Поле ввода названия
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  labelText: 'Название привычки',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  prefixIcon: const Icon(Icons.edit),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () {
-                      if (_nameCtrl.text.trim().isEmpty) return;
+              ),
+              const SizedBox(height: 16),
 
-                      setState(() {
-                        habit.name = _nameCtrl.text.trim();
-                        habit.reminderTime = _pickedTime;
-                        habit.emoji = _selectedEmoji;
-                        _save();
-                        _scheduleNotification(habit);
-                      });
-                      Navigator.pop(context);
-                    },
-                    child: const Text('Сохранить'),
+              // Выбор времени
+              ListTile(
+                leading: const Icon(Icons.access_time),
+                title: Text(currentReminderTime?.format(context) ?? 'Добавить напоминание'),
+                trailing: currentReminderTime != null
+                    ? IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => setModalState(() {
+                    currentReminderTime = null;
+                  }),
+                )
+                    : null,
+                onTap: () async {
+                  final time = await showTimePicker(
+                    context: context,
+                    initialTime: currentReminderTime ?? TimeOfDay.now(),
+                  );
+                  if (time != null) {
+                    setModalState(() {
+                      currentReminderTime = time;
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Кнопки действий
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Отмена'),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-          ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () {
+                        if (nameController.text.trim().isEmpty) return;
+
+                        setState(() {
+                          habit.name = nameController.text.trim();
+                          habit.reminderTime = currentReminderTime;
+                          habit.emoji = currentEmoji;
+                          _save();
+                          _scheduleNotification(habit);
+                        });
+                        Navigator.pop(context);
+                      },
+                      child: const Text('Сохранить'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
