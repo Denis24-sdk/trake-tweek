@@ -23,6 +23,7 @@
 
 | Версия    | Android |  Windows |
 |-----------|---------|---------|
+| v1.3      |[arm64-v8a](https://github.com/Denis24-sdk/trake-tweek/releases/download/v1.3/app-arm64-v8a-release.apk)|[64x](https://github.com/Denis24-sdk/trake-tweek/releases/download/v1.3/windows.zip)|  
 | v1.1      |[arm64-v8a](https://github.com/Denis24-sdk/trake-tweek/releases/download/v1.1/trake-tweek.apk)|[64x](https://github.com/Denis24-sdk/trake-tweek/releases/download/v1.1/trake-tweek.zip)|  
 | v1.0      |[arm64-v8a](https://github.com/Denis24-sdk/trake-tweek/releases/download/v1.0/trake-tweek.apk)|[64x](https://github.com/Denis24-sdk/trake-tweek/releases/download/v1.0/Trake-tweek.zip)|  
 
