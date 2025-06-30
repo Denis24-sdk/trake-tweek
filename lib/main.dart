@@ -15,6 +15,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:android_intent_plus/android_intent.dart';
+import 'package:reorderables/reorderables.dart' as reorderables;
 
 // Helper function to replace withOpacity
 Color withCustomOpacity(Color color, double opacity) {
@@ -194,6 +195,18 @@ class Habit {
     return streak;
   }
 
+  List<bool> getLast7DaysCompletion() {
+    final now = DateTime.now();
+    final formatter = DateFormat('yyyy-MM-dd');
+    List<bool> completions = [];
+    for (int i = 6; i >= 0; i--) {
+      final date = now.subtract(Duration(days: i));
+      final key = formatter.format(date);
+      completions.add(completedDates.contains(key));
+    }
+    return completions;
+  }
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
@@ -265,7 +278,6 @@ class _HabitHomePageState extends State<HabitHomePage> {
     enableVibration: true,
   );
 
-  // Список доступных эмодзи для привычек
   final List<String> _availableEmojis = [
     '🏃', '📖', '💧', '🍎', '🏋️', '🧘', '🚭', '🛌', '🧠', '✍️',
     '🎯', '🌱', '☀️', '🌙', '🧹', '🚿', '🍏', '🥗', '🚶', '💪'
@@ -478,8 +490,6 @@ class _HabitHomePageState extends State<HabitHomePage> {
 
   void _editHabit(int index) {
     final habit = _habits[index];
-
-
     final nameController = TextEditingController(text: habit.name);
     TimeOfDay? currentReminderTime = habit.reminderTime;
     String? currentEmoji = habit.emoji;
@@ -511,6 +521,36 @@ class _HabitHomePageState extends State<HabitHomePage> {
                 ),
               ),
               const SizedBox(height: 20),
+
+              // Эмоджи пикер
+              SizedBox(
+                height: 60,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _availableEmojis.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (ctx, i) => GestureDetector(
+                    onTap: () => setModalState(() => currentEmoji = _availableEmojis[i]),
+                    child: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: currentEmoji == _availableEmojis[i]
+                            ? Theme.of(context).colorScheme.primary.withOpacity(0.2)
+                            : Theme.of(context).colorScheme.surfaceVariant,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Center(
+                        child: Text(
+                          _availableEmojis[i],
+                          style: const TextStyle(fontSize: 24),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 15),
 
               // Поле ввода названия
               TextField(
@@ -588,7 +628,6 @@ class _HabitHomePageState extends State<HabitHomePage> {
     );
   }
 
-
   void _deleteHabit(int index) {
     final habit = _habits[index];
 
@@ -598,7 +637,6 @@ class _HabitHomePageState extends State<HabitHomePage> {
         title: const Text('Удалить привычку?'),
         content: Text('Вы точно хотите удалить привычку "${habit.name}"?'),
         actions: [
-          // Кнопка отмены
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
@@ -608,19 +646,15 @@ class _HabitHomePageState extends State<HabitHomePage> {
               ),
             ),
           ),
-
-          // Кнопка удаления
           TextButton(
             onPressed: () {
-              Navigator.pop(context); // Закрыть диалог
+              Navigator.pop(context);
               setState(() {
                 _habits.removeAt(index);
                 _save();
-                // Отменить уведомление
                 flutterLocalNotificationsPlugin.cancel(habit.id.hashCode);
               });
 
-              // Показать подтверждение удаления
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('Привычка "${habit.name}" удалена'),
@@ -838,7 +872,7 @@ class _HabitHomePageState extends State<HabitHomePage> {
                     }
                     setState(() {
                       if (isEdit) {
-                        final h = _habits[idx];
+                        final h = _habits[idx!];
                         h.name = n;
                         h.reminderTime = _pickedTime;
                         h.emoji = _selectedEmoji;
@@ -1104,12 +1138,12 @@ class _HabitHomePageState extends State<HabitHomePage> {
                 const SizedBox(height: 20),
                 _InfoRow(
                   icon: Icons.verified_user_outlined,
-                  text: 'Версия 1.0.0',
+                  text: 'Версия 1.3',
                 ),
                 const SizedBox(height: 12),
                 _InfoRow(
                   icon: Icons.update_outlined,
-                  text: 'Последнее обновление: 26.06.2025',
+                  text: 'Последнее обновление: 30.06.2025',
                 ),
                 const SizedBox(height: 12),
                 _InfoRow(
@@ -1135,45 +1169,6 @@ class _HabitHomePageState extends State<HabitHomePage> {
             ),
           ),
           const SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
-
-
-
-  Widget _statCard(String title, String value, IconData icon) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            icon,
-            color: Theme.of(context).colorScheme.primary,
-            size: 24,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: GoogleFonts.poppins(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-            ),
-          ),
         ],
       ),
     );
@@ -1205,7 +1200,7 @@ class _HabitHomePageState extends State<HabitHomePage> {
       body: SafeArea(
         child: Column(
           children: [
-            // Верхняя панель с заголовком и кнопками
+            // Верхняя панель
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
               child: Column(
@@ -1326,48 +1321,67 @@ class _HabitHomePageState extends State<HabitHomePage> {
             ),
 
             // Основной контент
-            Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                child: _showSettings
-                    ? _settingsPanel()
-                    : _habits.isEmpty
-                    ? _emptyState()
-                    : ReorderableColumn(
-                  scrollController: _scrollController,
-                  onReorder: (oldIndex, newIndex) {
-                    setState(() {
-                      if (oldIndex < newIndex) newIndex--;
-                      final habit = _habits.removeAt(oldIndex);
-                      _habits.insert(newIndex, habit);
-                      _save();
-                    });
-                  },
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (int i = 0; i < _habits.length; i++)
-                      KeyedSubtree(
-                        key: ValueKey(_habits[i].id),
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                          child: _HabitCard(
-                            habit: _habits[i],
-                            color: _habits[i].color ?? Theme.of(context).colorScheme.primary,
-                            onToggle: () {
-                              setState(() {
-                                _habits[i].toggleToday();
-                                _save();
-                              });
-                            },
-                            onEdit: () => _editHabit(i),
-                            onDelete: () => _deleteHabit(i),
-                          ),
+      Expanded(
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          child: _showSettings
+              ? _settingsPanel()
+              : _habits.isEmpty
+              ? _emptyState()
+              : LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              // Определяем количество столбцов в зависимости от ширины экрана
+              final width = constraints.maxWidth;
+              int crossAxisCount;
+              double childAspectRatio;
+
+              if (width > 1000) {
+                crossAxisCount = 3;
+                childAspectRatio = 1.8;
+              } else if (width > 700) {
+                crossAxisCount = 2;
+                childAspectRatio = 1.7;
+              } else {
+                crossAxisCount = 1;
+                childAspectRatio = 1.9;
+              }
+
+              return ReorderableListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  for (int i = 0; i < _habits.length; i++)
+                    KeyedSubtree(
+                      key: ValueKey(_habits[i].id),
+                      child: SizedBox(
+                        height: 164, // Фиксированная высота карточки
+                        child: _HabitCard(
+                          habit: _habits[i],
+                          color: _habits[i].color ?? Theme.of(context).colorScheme.primary,
+                          onToggle: () {
+                            setState(() {
+                              _habits[i].toggleToday();
+                              _save();
+                            });
+                          },
+                          onEdit: () => _editHabit(i),
+                          onDelete: () => _deleteHabit(i),
                         ),
                       ),
-                  ],
-                ),
-              ),
-            ),
+                    ),
+                ],
+                onReorder: (oldIndex, newIndex) {
+                  setState(() {
+                    if (oldIndex < newIndex) newIndex--;
+                    final habit = _habits.removeAt(oldIndex);
+                    _habits.insert(newIndex, habit);
+                    _save();
+                  });
+                },
+              );
+            },
+          ),
+        ),
+      ),
           ],
         ),
       ),
@@ -1394,6 +1408,203 @@ class _HabitCard extends StatelessWidget {
     required this.onDelete,
     required this.color,
   });
+
+  void _showStatistics(BuildContext context) {
+    final completions = habit.getLast7DaysCompletion();
+    final weekDays = _getLast7DaysNames();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.65,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Статистика: ${habit.name}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Прогресс за последние 7 дней',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: GridView.count(
+                crossAxisCount: 7,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                children: List.generate(7, (index) {
+                  final completed = completions[index];
+                  return Column(
+                    children: [
+                      Container(
+                        width: 30,
+                        height: 150,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          color: Theme.of(context).colorScheme.surfaceVariant,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            AnimatedContainer(
+                              duration: 500.ms,
+                              curve: Curves.easeOut,
+                              height: completed ? 120 : 40,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                color: completed
+                                    ? color
+                                    : Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        weekDays[index],
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Icon(
+                        completed ? Icons.check : Icons.close,
+                        size: 16,
+                        color: completed
+                            ? color
+                            : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                      ),
+                    ],
+                  );
+                }),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildStatTile(
+                    context,
+                    'Серия',
+                    '${habit.getCurrentStreak()} дней',
+                    Icons.local_fire_department,
+                    color
+                ),
+                _buildStatTile(
+                    context,
+                    'Прогресс',
+                    '${habit.getProgressForWeek()}/7',
+                    Icons.timeline,
+                    color
+                ),
+                _buildStatTile(
+                    context,
+                    'Всего',
+                    '${habit.completedDates.length} дней',
+                    Icons.calendar_today,
+                    color
+                ),
+              ],
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatTile(BuildContext context, String title, String value, IconData icon, Color color) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: 110,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Иконка с фоном
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 20, color: color),
+          ),
+          const SizedBox(height: 8),
+          // Значение
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          // Название
+          Text(
+            title,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              color: theme.colorScheme.onSurface.withOpacity(0.7),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<String> _getLast7DaysNames() {
+    final now = DateTime.now();
+    final formatter = DateFormat('E', 'ru_RU');
+    List<String> days = [];
+    for (int i = 6; i >= 0; i--) {
+      final date = now.subtract(Duration(days: i));
+      days.add(formatter.format(date));
+    }
+    return days;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1444,134 +1655,136 @@ class _HabitCard extends StatelessWidget {
             Column(
               children: [
                 // Main content
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header row
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Emoji
-                          if (habit.emoji != null)
-                            Container(
-                              margin: const EdgeInsets.only(right: 12),
-                              child: Text(
-                                habit.emoji!,
-                                style: const TextStyle(fontSize: 28),
-                              ),
-                            ),
-
-                          // Title and stats
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Title
-                                Text(
-                                  habit.name,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: theme.colorScheme.onSurface,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header row
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Emoji
+                            if (habit.emoji != null)
+                              Container(
+                                margin: const EdgeInsets.only(right: 12),
+                                child: Text(
+                                  habit.emoji!,
+                                  style: const TextStyle(fontSize: 36),
                                 ),
+                              ),
 
-                                // Stats row
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: Row(
-                                    children: [
-                                      // Streak
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.local_fire_department,
-                                            size: 16,
-                                            color: streak > 0
-                                                ? Colors.orange
-                                                : theme.colorScheme.outline,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            streak > 0 ? '$streak' : '0',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w600,
+                            // Title and stats
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Title
+                                  Text(
+                                    habit.name,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.colorScheme.onSurface,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+
+                                  // Stats row
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: Row(
+                                      children: [
+                                        // Streak
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.local_fire_department,
+                                              size: 16,
                                               color: streak > 0
                                                   ? Colors.orange
                                                   : theme.colorScheme.outline,
                                             ),
-                                          ),
-                                        ],
-                                      ),
-
-                                      const SizedBox(width: 12),
-
-                                      // Progress
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.timeline,
-                                            size: 16,
-                                            color: theme.colorScheme.primary,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            '$progress/7',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w600,
-                                              color: theme.colorScheme.primary,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-
-                                      if (habit.reminderTime != null) ...[
-                                        const SizedBox(width: 12),
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              Icons.access_time,
-                                              size: 14,
-                                              color: theme.colorScheme.outline,
-                                            ),
                                             const SizedBox(width: 4),
                                             Text(
-                                              habit.reminderTime!.format(context),
+                                              streak > 0 ? '$streak' : '0',
                                               style: GoogleFonts.inter(
-                                                fontSize: 12,
-                                                color: theme.colorScheme.outline,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: streak > 0
+                                                    ? Colors.orange
+                                                    : theme.colorScheme.outline,
                                               ),
                                             ),
                                           ],
                                         ),
+
+                                        const SizedBox(width: 12),
+
+                                        // Progress
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.timeline,
+                                              size: 16,
+                                              color: theme.colorScheme.primary,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              '$progress/7',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: theme.colorScheme.primary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+
+                                        if (habit.reminderTime != null) ...[
+                                          const SizedBox(width: 12),
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.access_time,
+                                                size: 14,
+                                                color: theme.colorScheme.outline,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                habit.reminderTime!.format(context),
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 12,
+                                                  color: theme.colorScheme.outline,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ],
-                                    ],
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        // Creation date
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            'Создано: ${DateFormat("dd.MM.yy").format(habit.createdAt)}',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              color: theme.colorScheme.outline,
                             ),
                           ),
-                        ],
-                      ),
-
-                      // Creation date
-                      Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: Text(
-                          'Создано: ${DateFormat("dd.MM.yy").format(habit.createdAt)}',
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            color: theme.colorScheme.outline,
-                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
 
@@ -1597,7 +1810,7 @@ class _HabitCard extends StatelessWidget {
                       _BottomActionButton(
                         icon: Icons.bar_chart,
                         label: 'Статистика',
-                        onPressed: () {}, // Placeholder
+                        onPressed: () => _showStatistics(context),
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                       _BottomActionButton(
@@ -1646,8 +1859,6 @@ class _HabitCard extends StatelessWidget {
   }
 }
 
-
-
 class _BottomActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -1687,8 +1898,6 @@ class _BottomActionButton extends StatelessWidget {
   }
 }
 
-
-// Вспомогательные виджеты
 class _SectionHeader extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -1811,45 +2020,43 @@ class _StatCard extends StatelessWidget {
         color: theme.colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Center(
-                child: Icon(
-                  icon,
-                  size: 24,
-                  color: color,
-                ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Center(
+              child: Icon(
+                icon,
+                size: 24,
+                color: color,
               ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              value,
-              style: GoogleFonts.poppins(
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                color: theme.colorScheme.onSurface,
-              ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: theme.colorScheme.onSurface,
             ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
-              ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              color: theme.colorScheme.onSurface.withOpacity(0.7),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

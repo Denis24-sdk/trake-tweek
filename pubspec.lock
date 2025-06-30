@@ -420,10 +420,10 @@ packages:
     dependency: "direct main"
     description:
       name: reorderables
-      sha256: "92dd02c27b58f9fe9d467c24b49fafea458e4355fcea474abb17ba79a058275d"
+      sha256: "004a886e4878df1ee27321831c838bc1c976311f4ca6a74ce7d561e506540a77"
       url: "https://pub.dev"
     source: hosted
-    version: "0.4.4"
+    version: "0.6.0"
   shared_preferences:
     dependency: "direct main"
     description:
